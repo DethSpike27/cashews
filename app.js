@@ -276,16 +276,11 @@ function lireFichier(event) {
           return obj;
         });
       }
-      let ajoutees = 0;
-      nouvelles.forEach(n => {
-        const existe = transactions.some(t =>
-          t.date===n.date && t.description===n.description &&
-          t.montant===n.montant && t.type===n.type);
-        if (!existe) { transactions.push(n); ajoutees++; }
-      });
+      if (!confirm(`Importer ${nouvelles.length} transaction(s) ?\n⚠️ Cela remplacera toutes vos données actuelles.`)) return;
+      transactions = nouvelles;
       sauvegarder();
       rafraichir();
-      alert(`${ajoutees} transaction(s) importée(s).`);
+      alert(`${nouvelles.length} transaction(s) importée(s). Données remplacées.`);
     } catch(err) {
       alert("Erreur lors de l'import : " + err.message);
     }
