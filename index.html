@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>💰 CashewS – Gestion Finances</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- EN-TÊTE -->
+  <header>
+    <span class="logo">💰 CashewS</span>
+    <nav class="mois-nav">
+      <button id="btn-prev">◀</button>
+      <span id="lbl-mois">—</span>
+      <button id="btn-next">▶</button>
+    </nav>
+    <div class="header-btns">
+      <button onclick="importerFichier()">📥 Importer</button>
+      <button onclick="exporterCSV()">📤 CSV</button>
+      <button onclick="exporterJSON()">💾 JSON</button>
+      <input type="file" id="file-input" accept=".json,.csv" style="display:none" onchange="lireFichier(event)">
+    </div>
+  </header>
+
+  <!-- CARTES RÉSUMÉ -->
+  <section class="cards">
+    <div class="card accent"><div class="card-title">Solde</div><div class="card-val" id="c-solde">+0.00 $</div></div>
+    <div class="card green"><div class="card-title">Entrées</div><div class="card-val" id="c-entrees">+0.00 $</div></div>
+    <div class="card red"><div class="card-title">Sorties</div><div class="card-val" id="c-sorties">-0.00 $</div></div>
+  </section>
+
+  <!-- CORPS -->
+  <main>
+    <!-- FORMULAIRE -->
+    <aside>
+      <h2>Nouvelle transaction</h2>
+      <label>Description
+        <div class="autocomplete-wrap">
+          <input type="text" id="f-desc" autocomplete="off" placeholder="Ex: Épicerie…">
+          <ul id="suggestions"></ul>
+        </div>
+      </label>
+      <label>Montant ($)<input type="number" id="f-montant" min="0.01" step="0.01" placeholder="0.00"></label>
+      <label>Date<input type="date" id="f-date"></label>
+      <label>Type
+        <div class="radio-group">
+          <label><input type="radio" name="type" value="entrée" checked> Entrée</label>
+          <label><input type="radio" name="type" value="sortie"> Sortie</label>
+        </div>
+      </label>
+      <label>Catégorie
+        <select id="f-cat">
+          <option>Salaire</option><option>Alimentation</option><option>Loyer</option>
+          <option>Transport</option><option>Loisirs</option><option>Santé</option>
+          <option>Épargne</option><option selected>Autre</option>
+        </select>
+      </label>
+      <button class="btn-add" onclick="ajouterTransaction()">➕ Ajouter</button>
+
+      <hr>
+      <h2>📊 Relevé du mois</h2>
+      <div class="releve">
+        <span>Entrées du mois</span><span class="green" id="r-entrees">—</span>
+        <span>Sorties du mois</span><span class="red"   id="r-sorties">—</span>
+        <span>Solde du mois</span>  <span id="r-solde">—</span>
+        <span>Bilan</span>          <span id="r-bilan">—</span>
+      </div>
+    </aside>
+
+    <!-- LISTE -->
+    <section class="liste">
+      <div class="filter-bar">
+        <span>Filtrer :</span>
+        <label><input type="radio" name="filtre" value="tous" checked onchange="rafraichir()"> Tous</label>
+        <label><input type="radio" name="filtre" value="entrée" onchange="rafraichir()"> Entrées</label>
+        <label><input type="radio" name="filtre" value="sortie" onchange="rafraichir()"> Sorties</label>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Date</th><th>Description</th><th>Catégorie</th><th>Type</th><th>Montant</th><th></th></tr></thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <!-- MODAL ÉDITION -->
+  <div id="modal-overlay" class="modal-overlay" style="display:none" onclick="fermerModal(event)">
+    <div class="modal">
+      <h2>✏️ Modifier la transaction</h2>
+      <label>Description<input type="text" id="m-desc" autocomplete="off"></label>
+      <label>Montant ($)<input type="number" id="m-montant" min="0.01" step="0.01"></label>
+      <label>Date<input type="date" id="m-date"></label>
+      <label>Type
+        <div class="radio-group">
+          <label><input type="radio" name="m-type" value="entrée"> Entrée</label>
+          <label><input type="radio" name="m-type" value="sortie"> Sortie</label>
+        </div>
+      </label>
+      <label>Catégorie
+        <select id="m-cat">
+          <option>Salaire</option><option>Alimentation</option><option>Loyer</option>
+          <option>Transport</option><option>Loisirs</option><option>Santé</option>
+          <option>Épargne</option><option>Autre</option>
+        </select>
+      </label>
+      <div class="modal-btns">
+        <button class="btn-cancel" onclick="fermerModal()">Annuler</button>
+        <button class="btn-save"   onclick="sauvegarderModif()">💾 Sauvegarder</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
