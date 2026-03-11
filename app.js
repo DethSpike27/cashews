@@ -277,10 +277,11 @@ function lireFichier(event) {
         });
       }
       if (!confirm(`Importer ${nouvelles.length} transaction(s) ?\n⚠️ Cela remplacera toutes vos données actuelles.`)) return;
-      transactions = nouvelles;
+      transactions.length = 0;
+      nouvelles.forEach(n => transactions.push(n));
       sauvegarder();
       rafraichir();
-      alert(`${nouvelles.length} transaction(s) importée(s). Données remplacées.`);
+      alert(`✅ ${nouvelles.length} transaction(s) importée(s) avec succès.`);
     } catch(err) {
       alert("Erreur lors de l'import : " + err.message);
     }
