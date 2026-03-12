@@ -15,6 +15,8 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("f-date").value = new Date().toISOString().slice(0,10);
   document.getElementById("btn-prev").addEventListener("click", moisPrecedent);
   document.getElementById("btn-next").addEventListener("click", moisSuivant);
+  document.getElementById("btn-annee-prev").addEventListener("click", anneePrecedente);
+  document.getElementById("btn-annee-next").addEventListener("click", anneeSuivante);
   majNavLabel();
   rafraichir();
   initAutocomplete();
@@ -22,8 +24,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
 // ── Navigation mois ───────────────────────────────────────────────────────────
 function majNavLabel() {
-  document.getElementById("lbl-mois").textContent =
-    MOIS_NOMS[moisCourant - 1] + " " + anneeCourante;
+  document.getElementById("lbl-mois").textContent = MOIS_NOMS[moisCourant - 1];
+  document.getElementById("lbl-annee").textContent = anneeCourante;
 }
 function moisPrecedent() {
   if (moisCourant === 1) { moisCourant = 12; anneeCourante--; }
@@ -33,6 +35,16 @@ function moisPrecedent() {
 function moisSuivant() {
   if (moisCourant === 12) { moisCourant = 1; anneeCourante++; }
   else moisCourant++;
+  majNavLabel(); rafraichir();
+}
+
+// ── Navigation année ──────────────────────────────────────────────────────────
+function anneePrecedente() {
+  anneeCourante--;
+  majNavLabel(); rafraichir();
+}
+function anneeSuivante() {
+  anneeCourante++;
   majNavLabel(); rafraichir();
 }
 

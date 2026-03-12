@@ -3,17 +3,28 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>💰 CashewS – Gestion Finances</title>
+  <title>CashewS</title>
   <link rel="stylesheet" href="style.css">
+  <!-- Apple Touch Icon (iPad / iPhone Add to Home Screen) -->
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="CashewS">
+  <meta name="theme-color" content="#3b82f6">
 </head>
 <body>
   <!-- EN-TÊTE -->
   <header>
-    <span class="logo">💰 CashewS</span>
+    <span class="logo">CashewS</span>
     <nav class="mois-nav">
       <button id="btn-prev">◀</button>
       <span id="lbl-mois">—</span>
       <button id="btn-next">▶</button>
+    </nav>
+    <nav class="annee-nav">
+      <button id="btn-annee-prev">◀</button>
+      <span id="lbl-annee">—</span>
+      <button id="btn-annee-next">▶</button>
     </nav>
     <div class="header-btns">
       <button onclick="importerFichier()">📥 Importer</button>
