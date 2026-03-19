@@ -83,7 +83,16 @@ function rafraichir() {
 
   document.getElementById("c-entrees").textContent = `+${entrees.toFixed(2)} $`;
   document.getElementById("c-sorties").textContent = `-${sorties.toFixed(2)} $`;
-  document.getElementById("c-solde").textContent   = (solde>=0?"+":"")+solde.toFixed(2)+" $";
+
+  // Carte Solde : vert si positif, rouge si négatif
+  const cSolde = document.getElementById("c-solde");
+  cSolde.textContent = (solde>=0?"+":"")+solde.toFixed(2)+" $";
+  const cardSolde = cSolde.closest(".card");
+  if (solde < 0) {
+    cardSolde.style.background = "var(--red)";
+  } else {
+    cardSolde.style.background = "var(--green)";
+  }
 
   document.getElementById("r-entrees").textContent = `+${entrees.toFixed(2)} $`;
   document.getElementById("r-sorties").textContent = `-${sorties.toFixed(2)} $`;
@@ -101,6 +110,27 @@ function rafraichir() {
   } else {
     bilan.textContent = `⚠️ Déficit de ${Math.abs(solde).toFixed(2)} $`;
     bilan.style.color = "var(--red)";
+  }
+
+  // Bilan avec Épargne : solde du mois - montant des sorties catégorie Épargne
+  const epargne = duMois
+    .filter(t => t.type === "sortie" && t.categorie === "Épargne")
+    .reduce((s,t) => s + t.montant, 0);
+  const soldeAvecEpargne = solde + epargne; // on retire l'épargne des sorties pour le bilan
+
+  const rEpargne = document.getElementById("r-epargne");
+  rEpargne.textContent = epargne > 0 ? `-${epargne.toFixed(2)} $` : "0.00 $";
+
+  const rBilanEpargne = document.getElementById("r-bilan-epargne");
+  if (entrees===0 && sorties===0) {
+    rBilanEpargne.textContent = "Aucune transaction";
+    rBilanEpargne.style.color = "var(--sub)";
+  } else if (soldeAvecEpargne >= 0) {
+    rBilanEpargne.textContent = `✅ Excédent de ${soldeAvecEpargne.toFixed(2)} $`;
+    rBilanEpargne.style.color = "var(--green)";
+  } else {
+    rBilanEpargne.textContent = `⚠️ Déficit de ${Math.abs(soldeAvecEpargne).toFixed(2)} $`;
+    rBilanEpargne.style.color = "var(--red)";
   }
 }
 

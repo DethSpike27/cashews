@@ -116,12 +116,19 @@ aside label select option { background: var(--panel); }
   display: grid; grid-template-columns: 1fr auto; gap: 5px 10px;
   font-size: .85rem;
 }
-.releve span:nth-child(odd) { color: var(--sub); }
-.releve span:nth-child(even) { text-align: right; font-weight: 700; }
+.releve .r-label { color: var(--sub); }
+.releve .r-val   { text-align: right; font-weight: 700; }
 /* Couleurs texte (relevé uniquement, pas dans les cartes) */
 .releve .green  { color: var(--green) !important; }
 .releve .red    { color: var(--red) !important; }
 .releve .accent { color: #60a5fa !important; }
+
+/* Séparateur dans le relevé */
+.releve-sep {
+  grid-column: 1 / -1;
+  border-top: 1px solid var(--border);
+  margin: 3px 0;
+}
 
 /* ── LISTE ── */
 .liste { flex: 1; display: flex; flex-direction: column; gap: 10px; }
