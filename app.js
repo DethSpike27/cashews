@@ -293,6 +293,198 @@ function telecharger(contenu, nom, type) {
   a.click();
 }
 
+// ── Analyse Loisirs & Autre ───────────────────────────────────────────────────
+function getMoisData(annee, mois) {
+  const prefix = `${annee}-${String(mois).padStart(2,"0")}`;
+  const duMois = transactions.filter(t => t.date.startsWith(prefix));
+  const loisirs = duMois.filter(t => t.type === "sortie" && t.categorie === "Loisirs").reduce((s,t)=>s+t.montant,0);
+  const autre   = duMois.filter(t => t.type === "sortie" && t.categorie === "Autre").reduce((s,t)=>s+t.montant,0);
+  const entrees = duMois.filter(t => t.type === "entrée").reduce((s,t)=>s+t.montant,0);
+  return { loisirs, autre, entrees };
+}
+
+function analyserDepenses() {
+  const prefix = `${anneeCourante}-${String(moisCourant).padStart(2,"0")}`;
+  const duMois = transactions.filter(t => t.date.startsWith(prefix));
+
+  const loisirs = duMois.filter(t => t.type === "sortie" && t.categorie === "Loisirs");
+  const autre   = duMois.filter(t => t.type === "sortie" && t.categorie === "Autre");
+
+  const totalLoisirs = loisirs.reduce((s, t) => s + t.montant, 0);
+  const totalAutre   = autre.reduce((s, t) => s + t.montant, 0);
+  const totalEntrees = duMois.filter(t => t.type === "entrée").reduce((s, t) => s + t.montant, 0);
+
+  const pctLoisirs = totalEntrees > 0 ? (totalLoisirs / totalEntrees * 100) : 0;
+  const pctAutre   = totalEntrees > 0 ? (totalAutre   / totalEntrees * 100) : 0;
+
+  // ── Historique 3 mois précédents ──
+  const historique = [];
+  for (let i = 1; i <= 3; i++) {
+    let m = moisCourant - i;
+    let a = anneeCourante;
+    if (m <= 0) { m += 12; a--; }
+    const data = getMoisData(a, m);
+    if (data.loisirs > 0 || data.autre > 0 || data.entrees > 0) {
+      historique.push({ mois: m, annee: a, ...data });
+    }
+  }
+
+  const div = document.getElementById("analyse-result");
+
+  if (totalLoisirs === 0 && totalAutre === 0) {
+    div.innerHTML = `<p class="analyse-vide">✅ Aucune dépense en <strong>Loisirs</strong> ou <strong>Autre</strong> ce mois-ci !</p>`;
+    document.getElementById("analyse-overlay").style.display = "flex";
+    return;
+  }
+
+  // ── Résumé ──
+  let html = `<div class="analyse-section">`;
+  html += `<div class="analyse-titre">📋 Résumé du mois</div>`;
+
+  if (totalLoisirs > 0) {
+    const badge = pctLoisirs > 15 ? "analyse-badge-rouge" : pctLoisirs > 8 ? "analyse-badge-orange" : "analyse-badge-vert";
+    html += `
+      <div class="analyse-ligne">
+        <span>🎮 Loisirs</span>
+        <span class="analyse-montant">${totalLoisirs.toFixed(2)} $</span>
+      </div>
+      <div class="analyse-pct ${badge}">${pctLoisirs.toFixed(1)} % des entrées</div>`;
+    if (loisirs.length > 0) {
+      html += `<ul class="analyse-liste">`;
+      loisirs.forEach(t => {
+        html += `<li><span>${t.description}</span><span>${t.montant.toFixed(2)} $</span></li>`;
+      });
+      html += `</ul>`;
+    }
+  }
+
+  if (totalAutre > 0) {
+    const badge = pctAutre > 10 ? "analyse-badge-rouge" : pctAutre > 5 ? "analyse-badge-orange" : "analyse-badge-vert";
+    html += `
+      <div class="analyse-ligne">
+        <span>📦 Autre</span>
+        <span class="analyse-montant">${totalAutre.toFixed(2)} $</span>
+      </div>
+      <div class="analyse-pct ${badge}">${pctAutre.toFixed(1)} % des entrées</div>`;
+    if (autre.length > 0) {
+      html += `<ul class="analyse-liste">`;
+      autre.forEach(t => {
+        html += `<li><span>${t.description}</span><span>${t.montant.toFixed(2)} $</span></li>`;
+      });
+      html += `</ul>`;
+    }
+  }
+
+  html += `</div>`;
+
+  // ── Comparatif mois précédents ──
+  if (historique.length > 0) {
+    html += `<div class="analyse-section">`;
+    html += `<div class="analyse-titre">📅 Comparatif mois précédents</div>`;
+    html += `<table class="compare-table">`;
+    html += `<thead><tr><th>Mois</th><th>🎮 Loisirs</th><th>📦 Autre</th><th>Total</th></tr></thead><tbody>`;
+
+    // Ligne mois courant
+    const totalCourant = totalLoisirs + totalAutre;
+    html += `<tr class="compare-row-current">
+      <td><strong>${MOIS_NOMS[moisCourant-1]}</strong></td>
+      <td>${totalLoisirs > 0 ? totalLoisirs.toFixed(2)+" $" : "—"}</td>
+      <td>${totalAutre > 0 ? totalAutre.toFixed(2)+" $" : "—"}</td>
+      <td><strong>${totalCourant.toFixed(2)} $</strong></td>
+    </tr>`;
+
+    historique.forEach(h => {
+      const totalH = h.loisirs + h.autre;
+      const diff   = totalCourant - totalH;
+      const diffTxt = diff === 0 ? "" : (diff > 0 ? `<span class="cmp-hausse">▲ ${diff.toFixed(2)} $</span>` : `<span class="cmp-baisse">▼ ${Math.abs(diff).toFixed(2)} $</span>`);
+      const label  = h.annee !== anneeCourante ? `${MOIS_NOMS[h.mois-1]} ${h.annee}` : MOIS_NOMS[h.mois-1];
+      html += `<tr>
+        <td>${label}</td>
+        <td>${h.loisirs > 0 ? h.loisirs.toFixed(2)+" $" : "—"}</td>
+        <td>${h.autre > 0 ? h.autre.toFixed(2)+" $" : "—"}</td>
+        <td>${totalH.toFixed(2)} $ ${diffTxt}</td>
+      </tr>`;
+    });
+
+    html += `</tbody></table>`;
+
+    // Tendance
+    if (historique.length >= 1) {
+      const prevTotal = historique[0].loisirs + historique[0].autre;
+      const diffPct   = prevTotal > 0 ? ((totalCourant - prevTotal) / prevTotal * 100) : null;
+      if (diffPct !== null) {
+        if (diffPct > 10) {
+          html += `<p class="compare-tendance rouge">📈 Vos dépenses Loisirs & Autre ont <strong>augmenté de ${diffPct.toFixed(1)} %</strong> par rapport au mois dernier.</p>`;
+        } else if (diffPct < -10) {
+          html += `<p class="compare-tendance vert">📉 Vos dépenses Loisirs & Autre ont <strong>diminué de ${Math.abs(diffPct).toFixed(1)} %</strong> par rapport au mois dernier. Bravo !</p>`;
+        } else {
+          html += `<p class="compare-tendance neutre">➡️ Vos dépenses Loisirs & Autre sont <strong>stables</strong> par rapport au mois dernier (${diffPct > 0 ? "+" : ""}${diffPct.toFixed(1)} %).</p>`;
+        }
+      }
+    }
+
+    html += `</div>`;
+  }
+
+  // ── Conseils ──
+  html += `<div class="analyse-section">`;
+  html += `<div class="analyse-titre">💡 Conseils</div>`;
+  html += `<ul class="analyse-conseils">`;
+
+  // Conseils Loisirs
+  if (totalLoisirs > 0) {
+    if (pctLoisirs > 15) {
+      html += `<li>⚠️ Vos <strong>Loisirs</strong> représentent <strong>${pctLoisirs.toFixed(1)} %</strong> de vos entrées — c'est élevé. Essayez de viser moins de 10 %.</li>`;
+      html += `<li>🎯 Fixez-vous un budget mensuel Loisirs de <strong>${(totalEntrees * 0.10).toFixed(2)} $</strong> (10 % de vos entrées).</li>`;
+      html += `<li>📅 Planifiez vos sorties à l'avance pour éviter les dépenses impulsives.</li>`;
+    } else if (pctLoisirs > 8) {
+      html += `<li>🟡 Vos <strong>Loisirs</strong> (${pctLoisirs.toFixed(1)} %) sont dans la moyenne — quelques ajustements pourraient aider.</li>`;
+      html += `<li>🔄 Cherchez des alternatives gratuites ou moins coûteuses pour certaines activités.</li>`;
+    } else {
+      html += `<li>✅ Vos <strong>Loisirs</strong> (${pctLoisirs.toFixed(1)} %) sont bien maîtrisés. Continuez ainsi !</li>`;
+    }
+    if (loisirs.length >= 3) {
+      const maxLoisir = loisirs.reduce((a, b) => a.montant > b.montant ? a : b);
+      html += `<li>💸 Votre plus grosse dépense Loisirs : <strong>${maxLoisir.description}</strong> (${maxLoisir.montant.toFixed(2)} $). Peut-elle être réduite ?</li>`;
+    }
+    html += `<li>📱 Vérifiez vos abonnements (streaming, jeux…) et annulez ceux que vous utilisez peu.</li>`;
+  }
+
+  // Conseils Autre
+  if (totalAutre > 0) {
+    if (pctAutre > 10) {
+      html += `<li>⚠️ La catégorie <strong>Autre</strong> représente <strong>${pctAutre.toFixed(1)} %</strong> de vos entrées. Essayez de recatégoriser ces dépenses pour mieux les contrôler.</li>`;
+      html += `<li>🏷️ Recatégorisez vos dépenses « Autre » pour identifier les postes à réduire.</li>`;
+    } else if (pctAutre > 5) {
+      html += `<li>🟡 La catégorie <strong>Autre</strong> (${pctAutre.toFixed(1)} %) mérite attention. Essayez de mieux catégoriser ces achats.</li>`;
+    } else {
+      html += `<li>✅ La catégorie <strong>Autre</strong> (${pctAutre.toFixed(1)} %) est bien contrôlée.</li>`;
+    }
+    if (autre.length >= 2) {
+      const maxAutre = autre.reduce((a, b) => a.montant > b.montant ? a : b);
+      html += `<li>💸 Plus grosse dépense « Autre » : <strong>${maxAutre.description}</strong> (${maxAutre.montant.toFixed(2)} $). Est-elle vraiment nécessaire ?</li>`;
+    }
+    html += `<li>📝 Avant chaque achat « Autre », demandez-vous : est-ce un besoin ou une envie ?</li>`;
+  }
+
+  // Conseil général
+  const totalFlexible = totalLoisirs + totalAutre;
+  if (totalFlexible > 0 && totalEntrees > 0) {
+    const economie = totalFlexible * 0.20;
+    html += `<li>💰 En réduisant vos dépenses Loisirs & Autre de 20 %, vous pourriez économiser <strong>${economie.toFixed(2)} $</strong> ce mois-ci.</li>`;
+  }
+
+  html += `</ul></div>`;
+
+  div.innerHTML = html;
+  document.getElementById("analyse-overlay").style.display = "flex";
+}
+
+function fermerAnalyse(event) {
+  if (event && event.target !== document.getElementById("analyse-overlay")) return;
+  document.getElementById("analyse-overlay").style.display = "none";
+}
+
 // ── Import ────────────────────────────────────────────────────────────────────
 function importerFichier() {
   document.getElementById("file-input").click();

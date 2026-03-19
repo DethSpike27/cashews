@@ -80,6 +80,10 @@
         <span class="r-label">Épargne du mois</span><span class="r-val accent" id="r-epargne">—</span>
         <span class="r-label">Bilan avec Épargne</span><span class="r-val" id="r-bilan-epargne">—</span>
       </div>
+
+      <hr>
+      <h2>🔍 Analyse Loisirs & Autre</h2>
+      <button class="btn-analyser" onclick="analyserDepenses()">📊 Analyser</button>
     </aside>
 
     <!-- LISTE -->
@@ -98,6 +102,17 @@
       </div>
     </section>
   </main>
+
+  <!-- MODAL ANALYSE -->
+  <div id="analyse-overlay" class="modal-overlay" style="display:none" onclick="fermerAnalyse(event)">
+    <div class="modal modal-analyse">
+      <div class="modal-analyse-header">
+        <h2>🔍 Analyse Loisirs &amp; Autre</h2>
+        <button class="btn-close-analyse" onclick="fermerAnalyse()">✕</button>
+      </div>
+      <div id="analyse-result" class="analyse-result"></div>
+    </div>
+  </div>
 
   <!-- MODAL ÉDITION -->
   <div id="modal-overlay" class="modal-overlay" style="display:none" onclick="fermerModal(event)">
