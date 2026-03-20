@@ -58,23 +58,8 @@ function rafraichir() {
   // Tableau
   const tbody = document.getElementById("tbody");
   tbody.innerHTML = "";
-  [...visible].sort((a,b) => b.date.localeCompare(a.date)).forEach((t, i) => {
-    const signe = t.type === "entrée" ? "+" : "-";
-    const cls   = t.type === "entrée" ? "entree" : "sortie";
-    const idx   = transactions.indexOf(t);
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>${t.date}</td>
-      <td>${t.description}</td>
-      <td>${t.categorie}</td>
-      <td class="${cls}">${t.type.charAt(0).toUpperCase()+t.type.slice(1)}</td>
-      <td class="${cls}">${signe}${parseFloat(t.montant).toFixed(2)} $</td>
-      <td>
-        <button class="btn-edit" onclick="ouvrirModal(${idx})" title="Modifier">✏️</button>
-        <button class="btn-del"  onclick="supprimer(${idx})"  title="Supprimer">🗑</button>
-      </td>`;
-    tbody.appendChild(tr);
-  });
+  const sorted = [...visible].sort((a,b) => b.date.localeCompare(a.date));
+  sorted.forEach(t => tbody.appendChild(_creerLigne(t)));
 
   // Cartes & relevé
   const entrees = duMois.filter(t=>t.type==="entrée").reduce((s,t)=>s+t.montant,0);
@@ -84,7 +69,6 @@ function rafraichir() {
   document.getElementById("c-entrees").textContent = `+${entrees.toFixed(2)} $`;
   document.getElementById("c-sorties").textContent = `-${sorties.toFixed(2)} $`;
 
-  // Carte Solde : vert si positif, rouge si négatif
   const cSolde = document.getElementById("c-solde");
   cSolde.textContent = (solde>=0?"+":"")+solde.toFixed(2)+" $";
   const cardSolde = cSolde.closest(".card");
@@ -112,11 +96,10 @@ function rafraichir() {
     bilan.style.color = "var(--red)";
   }
 
-  // Bilan avec Épargne : solde du mois - montant des sorties catégorie Épargne
   const epargne = duMois
     .filter(t => t.type === "sortie" && t.categorie === "Épargne")
     .reduce((s,t) => s + t.montant, 0);
-  const soldeAvecEpargne = solde + epargne; // on retire l'épargne des sorties pour le bilan
+  const soldeAvecEpargne = solde + epargne;
 
   const rEpargne = document.getElementById("r-epargne");
   rEpargne.textContent = epargne > 0 ? `-${epargne.toFixed(2)} $` : "0.00 $";
@@ -134,7 +117,38 @@ function rafraichir() {
   }
 }
 
+function _recBadge(t) {
+  if (t.type !== "sortie" || !t.recurrence || t.recurrence === "non") return "";
+  if (t.recurrence === "1x") return `<span class="badge-rec badge-rec-1x" title="Récurrent 1×/mois">🔁</span>`;
+  if (t.recurrence === "2x") return `<span class="badge-rec badge-rec-2x" title="Récurrent 2×/mois">🔁🔁</span>`;
+  return "";
+}
+
+function _creerLigne(t) {
+  const signe = t.type === "entrée" ? "+" : "-";
+  const cls   = t.type === "entrée" ? "entree" : "sortie";
+  const idx   = transactions.indexOf(t);
+  const recBadge = _recBadge(t);
+  const recCls   = (t.type === "sortie" && t.recurrence && t.recurrence !== "non") ? " tr-recurrent" : "";
+  const tr = document.createElement("tr");
+  tr.className = recCls;
+  tr.innerHTML = `
+    <td>${t.date}</td>
+    <td>${t.description} ${recBadge}</td>
+    <td>${t.categorie}</td>
+    <td class="${cls}">${t.type.charAt(0).toUpperCase()+t.type.slice(1)}</td>
+    <td class="${cls}">${signe}${parseFloat(t.montant).toFixed(2)} $</td>
+    <td>
+      <button class="btn-edit" onclick="ouvrirModal(${idx})" title="Modifier">✏️</button>
+      <button class="btn-del"  onclick="supprimer(${idx})"  title="Supprimer">🗑</button>
+    </td>`;
+  return tr;
+}
+
 // ── Ajouter ───────────────────────────────────────────────────────────────────
+// Données temporaires en attente de confirmation de récurrence
+let _pendingTx = null;
+
 function ajouterTransaction() {
   const desc    = document.getElementById("f-desc").value.trim();
   const montant = parseFloat(document.getElementById("f-montant").value);
@@ -146,14 +160,41 @@ function ajouterTransaction() {
   if (!montant || montant <= 0) return alert("Veuillez entrer un montant positif.");
   if (!date)            return alert("Veuillez entrer une date.");
 
-  transactions.push({ date, description: desc, categorie: cat, type, montant });
-  sauvegarder();
+  if (type === "sortie") {
+    // Ouvrir le popup de récurrence
+    _pendingTx = { date, description: desc, categorie: cat, type, montant };
+    document.getElementById("recurrence-overlay").style.display = "flex";
+  } else {
+    // Entrée : pas de récurrence
+    transactions.push({ date, description: desc, categorie: cat, type, montant, recurrence: "non" });
+    sauvegarder();
+    _resetFormulaire();
+    rafraichir();
+  }
+}
 
+function confirmerAjout(recurrence) {
+  if (!_pendingTx) return;
+  _pendingTx.recurrence = recurrence;
+  transactions.push(_pendingTx);
+  _pendingTx = null;
+  sauvegarder();
+  document.getElementById("recurrence-overlay").style.display = "none";
+  _resetFormulaire();
+  rafraichir();
+}
+
+function fermerRecurrence(event) {
+  if (event && event.target !== document.getElementById("recurrence-overlay")) return;
+  document.getElementById("recurrence-overlay").style.display = "none";
+  _pendingTx = null;
+}
+
+function _resetFormulaire() {
   document.getElementById("f-desc").value    = "";
   document.getElementById("f-montant").value = "";
   document.getElementById("f-date").value    = new Date().toISOString().slice(0,10);
   cacherSuggestions();
-  rafraichir();
 }
 
 // ── Supprimer ─────────────────────────────────────────────────────────────────
@@ -238,6 +279,28 @@ function ouvrirModal(idx) {
   document.querySelectorAll('input[name="m-type"]').forEach(r => {
     r.checked = r.value === t.type;
   });
+  // Afficher/masquer le champ récurrence selon le type
+  const recWrap = document.getElementById("m-recurrence-wrap");
+  if (t.type === "sortie") {
+    recWrap.style.display = "block";
+    const rec = t.recurrence || "non";
+    document.querySelectorAll('input[name="m-rec"]').forEach(r => {
+      r.checked = r.value === rec;
+    });
+  } else {
+    recWrap.style.display = "none";
+  }
+  // Mettre à jour la visibilité si l'utilisateur change le type
+  document.querySelectorAll('input[name="m-type"]').forEach(r => {
+    r.addEventListener("change", () => {
+      const isSortie = document.querySelector('input[name="m-type"]:checked').value === "sortie";
+      recWrap.style.display = isSortie ? "block" : "none";
+      if (isSortie) {
+        const firstRec = document.querySelector('input[name="m-rec"]');
+        if (firstRec && !document.querySelector('input[name="m-rec"]:checked')) firstRec.checked = true;
+      }
+    });
+  });
   document.getElementById("modal-overlay").style.display = "flex";
 }
 
@@ -259,7 +322,12 @@ function sauvegarderModif() {
   if (!montant || montant <= 0) return alert("Veuillez entrer un montant positif.");
   if (!date)             return alert("Veuillez entrer une date.");
 
-  transactions[idxEnEdition] = { date, description: desc, categorie: cat, type, montant };
+  let recurrence = "non";
+  if (type === "sortie") {
+    const recChecked = document.querySelector('input[name="m-rec"]:checked');
+    recurrence = recChecked ? recChecked.value : "non";
+  }
+  transactions[idxEnEdition] = { date, description: desc, categorie: cat, type, montant, recurrence };
   sauvegarder();
   document.getElementById("modal-overlay").style.display = "none";
   idxEnEdition = -1;
@@ -465,6 +533,36 @@ function analyserDepenses() {
       html += `<li>💸 Plus grosse dépense « Autre » : <strong>${maxAutre.description}</strong> (${maxAutre.montant.toFixed(2)} $). Est-elle vraiment nécessaire ?</li>`;
     }
     html += `<li>📝 Avant chaque achat « Autre », demandez-vous : est-ce un besoin ou une envie ?</li>`;
+  }
+
+  // Conseils récurrence
+  const toutesDepenses = [...loisirs, ...autre];
+  const recurrentes1x = toutesDepenses.filter(t => t.recurrence === "1x");
+  const recurrentes2x = toutesDepenses.filter(t => t.recurrence === "2x");
+  const totalRec1x = recurrentes1x.reduce((s,t)=>s+t.montant,0);
+  const totalRec2x = recurrentes2x.reduce((s,t)=>s+t.montant,0);
+  const totalRec = totalRec1x + totalRec2x;
+  const totalPonctuel = (totalLoisirs + totalAutre) - totalRec;
+
+  if (totalRec > 0) {
+    const pctRec = totalEntrees > 0 ? (totalRec / totalEntrees * 100) : 0;
+    html += `<li>🔁 Vous avez <strong>${totalRec.toFixed(2)} $</strong> de dépenses récurrentes en Loisirs & Autre`;
+    if (recurrentes1x.length > 0 && recurrentes2x.length > 0) {
+      html += ` (${recurrentes1x.length} à 1×/mois, ${recurrentes2x.length} à 2×/mois)`;
+    } else if (recurrentes1x.length > 0) {
+      html += ` (${recurrentes1x.length} à 1×/mois)`;
+    } else {
+      html += ` (${recurrentes2x.length} à 2×/mois)`;
+    }
+    html += ` — soit <strong>${pctRec.toFixed(1)} %</strong> de vos entrées.</li>`;
+    if (pctRec > 10) {
+      html += `<li>⚠️ Vos dépenses récurrentes sont élevées. Passez en revue chaque abonnement et demandez-vous si vous en avez vraiment besoin.</li>`;
+    } else {
+      html += `<li>✅ Vos dépenses récurrentes sont sous contrôle. Continuez à les surveiller chaque mois.</li>`;
+    }
+    if (totalPonctuel > 0) {
+      html += `<li>📌 Vos dépenses ponctuelles s'élèvent à <strong>${totalPonctuel.toFixed(2)} $</strong> — ce sont les plus faciles à réduire rapidement.</li>`;
+    }
   }
 
   // Conseil général

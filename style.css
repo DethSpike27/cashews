@@ -339,6 +339,65 @@ td.sortie { color: var(--red);   font-weight: 700; }
 .compare-tendance.neutre { background: rgba(107,122,141,.08); color: var(--sub); }
 .compare-tendance strong { color: inherit; }
 
+/* === RÉCURRENCE — POPUP === */
+.modal-recurrence {
+  width: 320px; gap: 14px;
+}
+.recurrence-desc {
+  font-size: .88rem; color: var(--sub); text-align: center;
+}
+.recurrence-btns {
+  display: flex; flex-direction: column; gap: 8px;
+}
+.btn-rec {
+  border: none; border-radius: 8px; padding: 11px 14px;
+  font-size: .88rem; font-weight: 600; cursor: pointer;
+  transition: opacity .2s, transform .1s;
+  text-align: left;
+}
+.btn-rec:hover { opacity: .85; transform: translateY(-1px); }
+.btn-rec:active { transform: translateY(0); }
+.btn-rec-non { background: #f1f5f9; color: var(--text); border: 1px solid var(--border); }
+.btn-rec-1x  { background: rgba(30,58,95,.1); color: var(--accent); border: 1px solid rgba(30,58,95,.2); }
+.btn-rec-2x  { background: rgba(30,58,95,.18); color: var(--accent); border: 1px solid rgba(30,58,95,.3); font-weight: 700; }
+
+/* === RÉCURRENCE — ÉDITION MODAL === */
+.recurrence-edit-wrap {
+  background: var(--entry); border: 1px solid var(--border);
+  border-radius: 7px; padding: 10px 12px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.recurrence-edit-label {
+  font-size: .75rem; font-weight: 700; color: var(--sub);
+  text-transform: uppercase; letter-spacing: .05em;
+}
+.recurrence-edit-wrap .radio-group {
+  flex-direction: column; gap: 6px;
+}
+.recurrence-edit-wrap .radio-group label {
+  flex-direction: row; align-items: center; gap: 6px;
+  color: var(--text); font-size: .83rem; font-weight: 400;
+}
+
+/* === RÉCURRENCE — BADGES DANS LE TABLEAU === */
+.badge-rec {
+  display: inline-block; font-size: .72rem;
+  border-radius: 10px; padding: 1px 6px; margin-left: 4px;
+  vertical-align: middle; font-style: normal;
+}
+.badge-rec-1x {
+  background: rgba(30,58,95,.1); color: var(--accent);
+  border: 1px solid rgba(30,58,95,.2);
+}
+.badge-rec-2x {
+  background: rgba(30,58,95,.18); color: var(--accent);
+  border: 1px solid rgba(30,58,95,.3);
+}
+
+/* === RÉCURRENCE — LIGNES DU TABLEAU === */
+.tr-recurrent td { background: rgba(30,58,95,.04); }
+.tr-recurrent:hover td { background: rgba(30,58,95,.09) !important; }
+
 /* === RESPONSIVE === */
 @media (max-width: 700px) {
   main { flex-direction: column; }
