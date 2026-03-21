@@ -2,21 +2,64 @@
 const MOIS_NOMS = ["Janvier","Février","Mars","Avril","Mai","Juin",
                    "Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
 
-let transactions = JSON.parse(localStorage.getItem("cashews_tx") || "[]");
+let transactions = JSON.parse(localStorage.getItem("cashewdollar_tx") || "[]");
 let moisCourant  = new Date().getMonth() + 1;
 let anneeCourante = new Date().getFullYear();
 
 function sauvegarder() {
-  localStorage.setItem("cashews_tx", JSON.stringify(transactions));
+  localStorage.setItem("cashewdollar_tx", JSON.stringify(transactions));
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("f-date").value = new Date().toISOString().slice(0,10);
+
+  // Navigation mois / année
   document.getElementById("btn-prev").addEventListener("click", moisPrecedent);
   document.getElementById("btn-next").addEventListener("click", moisSuivant);
   document.getElementById("btn-annee-prev").addEventListener("click", anneePrecedente);
   document.getElementById("btn-annee-next").addEventListener("click", anneeSuivante);
+
+  // Boutons header (remplace les onclick inline)
+  document.getElementById("btn-importer").addEventListener("click", importerFichier);
+  document.getElementById("btn-export-csv").addEventListener("click", exporterCSV);
+  document.getElementById("btn-export-json").addEventListener("click", exporterJSON);
+  document.getElementById("file-input").addEventListener("change", lireFichier);
+
+  // Formulaire principal (remplace onclick inline sur btn-add)
+  document.getElementById("form-transaction").addEventListener("submit", e => {
+    e.preventDefault();
+    ajouterTransaction();
+  });
+
+  // Bouton analyser (remplace onclick inline)
+  document.getElementById("btn-analyser").addEventListener("click", analyserDepenses);
+
+  // Fermeture modals par clic sur l'overlay
+  document.getElementById("analyse-overlay").addEventListener("click", fermerAnalyse);
+  document.getElementById("recurrence-overlay").addEventListener("click", fermerRecurrence);
+  document.getElementById("modal-overlay").addEventListener("click", fermerModal);
+
+  // Bouton fermer analyse
+  document.getElementById("btn-close-analyse").addEventListener("click", () => {
+    document.getElementById("analyse-overlay").style.display = "none";
+  });
+
+  // Boutons récurrence (remplace onclick inline)
+  document.getElementById("btn-rec-non").addEventListener("click", () => confirmerAjout("non"));
+  document.getElementById("btn-rec-1x").addEventListener("click",  () => confirmerAjout("1x"));
+  document.getElementById("btn-rec-2x").addEventListener("click",  () => confirmerAjout("2x"));
+  document.getElementById("btn-cancel-recurrence").addEventListener("click", () => fermerRecurrence());
+
+  // Boutons modal édition (remplace onclick inline)
+  document.getElementById("btn-cancel-modal").addEventListener("click", () => fermerModal());
+  document.getElementById("btn-save-modal").addEventListener("click", sauvegarderModif);
+
+  // Filtres liste
+  document.querySelectorAll('input[name="filtre"]').forEach(r =>
+    r.addEventListener("change", rafraichir)
+  );
+
   majNavLabel();
   rafraichir();
   initAutocomplete();
@@ -132,16 +175,49 @@ function _creerLigne(t) {
   const recCls   = (t.type === "sortie" && t.recurrence && t.recurrence !== "non") ? " tr-recurrent" : "";
   const tr = document.createElement("tr");
   tr.className = recCls;
-  tr.innerHTML = `
-    <td>${t.date}</td>
-    <td>${t.description} ${recBadge}</td>
-    <td>${t.categorie}</td>
-    <td class="${cls}">${t.type.charAt(0).toUpperCase()+t.type.slice(1)}</td>
-    <td class="${cls}">${signe}${parseFloat(t.montant).toFixed(2)} $</td>
-    <td>
-      <button class="btn-edit" onclick="ouvrirModal(${idx})" title="Modifier">✏️</button>
-      <button class="btn-del"  onclick="supprimer(${idx})"  title="Supprimer">🗑</button>
-    </td>`;
+
+  const tdDate = document.createElement("td");
+  tdDate.textContent = t.date;
+
+  const tdDesc = document.createElement("td");
+  tdDesc.innerHTML = `${t.description} ${recBadge}`;
+
+  const tdCat = document.createElement("td");
+  tdCat.textContent = t.categorie;
+
+  const tdType = document.createElement("td");
+  tdType.className = cls;
+  tdType.textContent = t.type.charAt(0).toUpperCase() + t.type.slice(1);
+
+  const tdMontant = document.createElement("td");
+  tdMontant.className = cls;
+  tdMontant.textContent = `${signe}${parseFloat(t.montant).toFixed(2)} $`;
+
+  const tdActions = document.createElement("td");
+  const btnEdit = document.createElement("button");
+  btnEdit.className = "btn-edit";
+  btnEdit.title = "Modifier";
+  btnEdit.setAttribute("aria-label", `Modifier ${t.description}`);
+  btnEdit.textContent = "✏️";
+  btnEdit.addEventListener("click", () => ouvrirModal(idx));
+
+  const btnDel = document.createElement("button");
+  btnDel.className = "btn-del";
+  btnDel.title = "Supprimer";
+  btnDel.setAttribute("aria-label", `Supprimer ${t.description}`);
+  btnDel.textContent = "🗑";
+  btnDel.addEventListener("click", () => supprimer(idx));
+
+  tdActions.appendChild(btnEdit);
+  tdActions.appendChild(btnDel);
+
+  tr.appendChild(tdDate);
+  tr.appendChild(tdDesc);
+  tr.appendChild(tdCat);
+  tr.appendChild(tdType);
+  tr.appendChild(tdMontant);
+  tr.appendChild(tdActions);
+
   return tr;
 }
 
