@@ -2,12 +2,29 @@
 const MOIS_NOMS = ["Janvier","Février","Mars","Avril","Mai","Juin",
                    "Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
 
-let transactions = JSON.parse(localStorage.getItem("cashewdollar_tx") || "[]");
-let moisCourant  = new Date().getMonth() + 1;
+const CATEGORIES_DEFAULT = ["Salaire","Alimentation","Loyer","Transport","Loisirs","Santé","Épargne","Autre"];
+
+let transactions  = JSON.parse(localStorage.getItem("cashewdollar_tx")   || "[]");
+let budgets       = JSON.parse(localStorage.getItem("cashewdollar_budgets") || "{}");
+let categoriesPerso = JSON.parse(localStorage.getItem("cashewdollar_cats") || "null");
+if (!categoriesPerso) categoriesPerso = [...CATEGORIES_DEFAULT];
+
+let moisCourant   = new Date().getMonth() + 1;
 let anneeCourante = new Date().getFullYear();
 
 function sauvegarder() {
   localStorage.setItem("cashewdollar_tx", JSON.stringify(transactions));
+}
+function sauvegarderBudgets() {
+  localStorage.setItem("cashewdollar_budgets", JSON.stringify(budgets));
+}
+function sauvegarderCategories() {
+  localStorage.setItem("cashewdollar_cats", JSON.stringify(categoriesPerso));
+}
+
+// Toutes les catégories (défaut + perso)
+function toutesCategories() {
+  return categoriesPerso;
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────
@@ -20,48 +37,89 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("btn-annee-prev").addEventListener("click", anneePrecedente);
   document.getElementById("btn-annee-next").addEventListener("click", anneeSuivante);
 
-  // Boutons header (remplace les onclick inline)
+  // Boutons header
   document.getElementById("btn-importer").addEventListener("click", importerFichier);
   document.getElementById("btn-export-csv").addEventListener("click", exporterCSV);
   document.getElementById("btn-export-json").addEventListener("click", exporterJSON);
   document.getElementById("file-input").addEventListener("change", lireFichier);
+  document.getElementById("btn-theme").addEventListener("click", toggleTheme);
 
-  // Formulaire principal (remplace onclick inline sur btn-add)
+  // Formulaire principal
   document.getElementById("form-transaction").addEventListener("submit", e => {
     e.preventDefault();
     ajouterTransaction();
   });
 
-  // Bouton analyser (remplace onclick inline)
+  // Bouton analyser
   document.getElementById("btn-analyser").addEventListener("click", analyserDepenses);
+
+  // Nouveaux boutons outils
+  document.getElementById("btn-annuelle").addEventListener("click", ouvrirVueAnnuelle);
+  document.getElementById("btn-graphique").addEventListener("click", ouvrirGraphique);
+  document.getElementById("btn-categories").addEventListener("click", ouvrirCategories);
+  document.getElementById("btn-budget-edit").addEventListener("click", ouvrirBudget);
 
   // Fermeture modals par clic sur l'overlay
   document.getElementById("analyse-overlay").addEventListener("click", fermerAnalyse);
   document.getElementById("recurrence-overlay").addEventListener("click", fermerRecurrence);
   document.getElementById("modal-overlay").addEventListener("click", fermerModal);
-
-  // Bouton fermer analyse
-  document.getElementById("btn-close-analyse").addEventListener("click", () => {
-    document.getElementById("analyse-overlay").style.display = "none";
+  document.getElementById("annuelle-overlay").addEventListener("click", e => {
+    if (e.target === document.getElementById("annuelle-overlay")) document.getElementById("annuelle-overlay").style.display = "none";
+  });
+  document.getElementById("graphique-overlay").addEventListener("click", e => {
+    if (e.target === document.getElementById("graphique-overlay")) document.getElementById("graphique-overlay").style.display = "none";
+  });
+  document.getElementById("budget-overlay").addEventListener("click", e => {
+    if (e.target === document.getElementById("budget-overlay")) document.getElementById("budget-overlay").style.display = "none";
+  });
+  document.getElementById("categories-overlay").addEventListener("click", e => {
+    if (e.target === document.getElementById("categories-overlay")) document.getElementById("categories-overlay").style.display = "none";
   });
 
-  // Boutons récurrence (remplace onclick inline)
+  // Boutons fermer modals
+  document.getElementById("btn-close-analyse").addEventListener("click", () => document.getElementById("analyse-overlay").style.display = "none");
+  document.getElementById("btn-close-annuelle").addEventListener("click", () => document.getElementById("annuelle-overlay").style.display = "none");
+  document.getElementById("btn-close-graphique").addEventListener("click", () => { document.getElementById("graphique-overlay").style.display = "none"; if(_chart){_chart.destroy();_chart=null;} });
+  document.getElementById("btn-close-budget").addEventListener("click", () => document.getElementById("budget-overlay").style.display = "none");
+  document.getElementById("btn-close-categories").addEventListener("click", () => document.getElementById("categories-overlay").style.display = "none");
+
+  // Boutons récurrence
   document.getElementById("btn-rec-non").addEventListener("click", () => confirmerAjout("non"));
   document.getElementById("btn-rec-1x").addEventListener("click",  () => confirmerAjout("1x"));
   document.getElementById("btn-rec-2x").addEventListener("click",  () => confirmerAjout("2x"));
   document.getElementById("btn-cancel-recurrence").addEventListener("click", () => fermerRecurrence());
 
-  // Boutons modal édition (remplace onclick inline)
+  // Boutons modal édition
   document.getElementById("btn-cancel-modal").addEventListener("click", () => fermerModal());
   document.getElementById("btn-save-modal").addEventListener("click", sauvegarderModif);
+
+  // Budget
+  document.getElementById("btn-save-budget").addEventListener("click", sauvegarderBudgetForm);
+
+  // Catégories
+  document.getElementById("btn-cat-add").addEventListener("click", ajouterCategorie);
+  document.getElementById("cat-new-input").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); ajouterCategorie(); } });
+
+  // Recherche
+  document.getElementById("search-input").addEventListener("input", rafraichir);
 
   // Filtres liste
   document.querySelectorAll('input[name="filtre"]').forEach(r =>
     r.addEventListener("change", rafraichir)
   );
 
+  // Thème sauvegardé
+  if (localStorage.getItem("cashewdollar_theme") === "dark") {
+    document.body.classList.add("dark");
+    document.getElementById("btn-theme").textContent = "☀️";
+  }
+
+  // Peupler les selects de catégories
+  peuplerSelectsCategories();
+
   majNavLabel();
   rafraichir();
+  verifierRappels();
   initAutocomplete();
 });
 
@@ -95,8 +153,17 @@ function anneeSuivante() {
 function rafraichir() {
   const prefix  = `${anneeCourante}-${String(moisCourant).padStart(2,"0")}`;
   const filtre  = document.querySelector('input[name="filtre"]:checked').value;
+  const recherche = (document.getElementById("search-input")?.value || "").trim().toLowerCase();
   const duMois  = transactions.filter(t => t.date.startsWith(prefix));
-  const visible = duMois.filter(t => filtre === "tous" || t.type === filtre);
+  let visible = duMois.filter(t => filtre === "tous" || t.type === filtre);
+  if (recherche) {
+    visible = visible.filter(t =>
+      t.description.toLowerCase().includes(recherche) ||
+      t.categorie.toLowerCase().includes(recherche) ||
+      (t.note && t.note.toLowerCase().includes(recherche)) ||
+      String(t.montant).includes(recherche)
+    );
+  }
 
   // Tableau
   const tbody = document.getElementById("tbody");
@@ -158,6 +225,9 @@ function rafraichir() {
     rBilanEpargne.textContent = `⚠️ Déficit de ${Math.abs(soldeAvecEpargne).toFixed(2)} $`;
     rBilanEpargne.style.color = "var(--red)";
   }
+
+  // Budget par catégorie
+  afficherBudgets(duMois);
 }
 
 function _recBadge(t) {
@@ -180,7 +250,7 @@ function _creerLigne(t) {
   tdDate.textContent = t.date;
 
   const tdDesc = document.createElement("td");
-  tdDesc.innerHTML = `${t.description} ${recBadge}`;
+  tdDesc.innerHTML = `${t.description} ${recBadge}${t.note ? `<span class="tx-note">${t.note}</span>` : ""}`;
 
   const tdCat = document.createElement("td");
   tdCat.textContent = t.categorie;
@@ -194,6 +264,14 @@ function _creerLigne(t) {
   tdMontant.textContent = `${signe}${parseFloat(t.montant).toFixed(2)} $`;
 
   const tdActions = document.createElement("td");
+
+  const btnDup = document.createElement("button");
+  btnDup.className = "btn-dup";
+  btnDup.title = "Dupliquer";
+  btnDup.setAttribute("aria-label", `Dupliquer ${t.description}`);
+  btnDup.textContent = "📋";
+  btnDup.addEventListener("click", () => dupliquer(idx));
+
   const btnEdit = document.createElement("button");
   btnEdit.className = "btn-edit";
   btnEdit.title = "Modifier";
@@ -208,6 +286,7 @@ function _creerLigne(t) {
   btnDel.textContent = "🗑";
   btnDel.addEventListener("click", () => supprimer(idx));
 
+  tdActions.appendChild(btnDup);
   tdActions.appendChild(btnEdit);
   tdActions.appendChild(btnDel);
 
@@ -236,13 +315,12 @@ function ajouterTransaction() {
   if (!montant || montant <= 0) return alert("Veuillez entrer un montant positif.");
   if (!date)            return alert("Veuillez entrer une date.");
 
+  const note = (document.getElementById("f-note")?.value || "").trim();
   if (type === "sortie") {
-    // Ouvrir le popup de récurrence
-    _pendingTx = { date, description: desc, categorie: cat, type, montant };
+    _pendingTx = { date, description: desc, categorie: cat, type, montant, note };
     document.getElementById("recurrence-overlay").style.display = "flex";
   } else {
-    // Entrée : pas de récurrence
-    transactions.push({ date, description: desc, categorie: cat, type, montant, recurrence: "non" });
+    transactions.push({ date, description: desc, categorie: cat, type, montant, recurrence: "non", note });
     sauvegarder();
     _resetFormulaire();
     rafraichir();
@@ -270,6 +348,8 @@ function _resetFormulaire() {
   document.getElementById("f-desc").value    = "";
   document.getElementById("f-montant").value = "";
   document.getElementById("f-date").value    = new Date().toISOString().slice(0,10);
+  const fNote = document.getElementById("f-note");
+  if (fNote) fNote.value = "";
   cacherSuggestions();
 }
 
@@ -352,6 +432,8 @@ function ouvrirModal(idx) {
   document.getElementById("m-montant").value = t.montant;
   document.getElementById("m-date").value    = t.date;
   document.getElementById("m-cat").value     = t.categorie;
+  const mNote = document.getElementById("m-note");
+  if (mNote) mNote.value = t.note || "";
   document.querySelectorAll('input[name="m-type"]').forEach(r => {
     r.checked = r.value === t.type;
   });
@@ -403,7 +485,8 @@ function sauvegarderModif() {
     const recChecked = document.querySelector('input[name="m-rec"]:checked');
     recurrence = recChecked ? recChecked.value : "non";
   }
-  transactions[idxEnEdition] = { date, description: desc, categorie: cat, type, montant, recurrence };
+  const note = (document.getElementById("m-note")?.value || "").trim();
+  transactions[idxEnEdition] = { date, description: desc, categorie: cat, type, montant, recurrence, note };
   sauvegarder();
   document.getElementById("modal-overlay").style.display = "none";
   idxEnEdition = -1;
@@ -415,9 +498,10 @@ function exporterCSV() {
   const prefix = `${anneeCourante}-${String(moisCourant).padStart(2,"0")}`;
   const data   = transactions.filter(t => t.date.startsWith(prefix));
   if (!data.length) return alert("Aucune transaction ce mois-ci.");
-  const header = "date,description,categorie,type,montant\n";
+  const header = "date,description,categorie,type,montant,recurrence,note\n";
   const rows   = data.map(t =>
-    `${t.date},"${t.description}","${t.categorie}",${t.type},${t.montant}`).join("\n");
+    `${t.date},"${(t.description||"").replace(/"/g,'""')}","${(t.categorie||"").replace(/"/g,'""')}",${t.type},${t.montant},${t.recurrence||"non"},"${(t.note||"").replace(/"/g,'""')}"`
+  ).join("\n");
   telecharger(header+rows, `cashews_${anneeCourante}_${String(moisCourant).padStart(2,"0")}.csv`, "text/csv");
 }
 
@@ -496,7 +580,7 @@ function analyserDepenses() {
     if (loisirs.length > 0) {
       html += `<ul class="analyse-liste">`;
       loisirs.forEach(t => {
-        html += `<li><span>${t.description}</span><span>${t.montant.toFixed(2)} $</span></li>`;
+        html += `<li><span>${t.description} ${_recBadge(t)}</span><span>${t.montant.toFixed(2)} $</span></li>`;
       });
       html += `</ul>`;
     }
@@ -513,7 +597,7 @@ function analyserDepenses() {
     if (autre.length > 0) {
       html += `<ul class="analyse-liste">`;
       autre.forEach(t => {
-        html += `<li><span>${t.description}</span><span>${t.montant.toFixed(2)} $</span></li>`;
+        html += `<li><span>${t.description} ${_recBadge(t)}</span><span>${t.montant.toFixed(2)} $</span></li>`;
       });
       html += `</ul>`;
     }
@@ -680,7 +764,9 @@ function lireFichier(event) {
           const vals = line.match(/(".*?"|[^,]+)/g) || [];
           const obj  = {};
           headers.forEach((h,i) => obj[h.trim()] = (vals[i]||"").replace(/^"|"$/g,"").trim());
-          obj.montant = parseFloat(obj.montant);
+          obj.montant    = parseFloat(obj.montant) || 0;
+          obj.recurrence = obj.recurrence || "non";
+          obj.note       = obj.note || "";
           return obj;
         });
       }
@@ -696,4 +782,210 @@ function lireFichier(event) {
     event.target.value = "";
   };
   reader.readAsText(file);
+}
+
+// ── Note & Duplication ────────────────────────────────────────────────────────
+function dupliquer(idx) {
+  const t = transactions[idx];
+  const copie = { ...t, date: new Date().toISOString().slice(0,10) };
+  transactions.push(copie);
+  sauvegarder();
+  rafraichir();
+}
+
+// ── Mode sombre/clair ─────────────────────────────────────────────────────────
+function toggleTheme() {
+  const dark = document.body.classList.toggle("dark");
+  document.getElementById("btn-theme").textContent = dark ? "☀️" : "🌙";
+  localStorage.setItem("cashewdollar_theme", dark ? "dark" : "light");
+}
+
+// ── Rappels récurrents ────────────────────────────────────────────────────────
+function verifierRappels() {
+  const moisPrec = moisCourant === 1 ? 12 : moisCourant - 1;
+  const anneePrec = moisCourant === 1 ? anneeCourante - 1 : anneeCourante;
+  const prefixPrec = `${anneePrec}-${String(moisPrec).padStart(2,"0")}`;
+  const prefixCour = `${anneeCourante}-${String(moisCourant).padStart(2,"0")}`;
+
+  const recPrec = transactions.filter(t =>
+    t.date.startsWith(prefixPrec) && t.type === "sortie" &&
+    t.recurrence && t.recurrence !== "non"
+  );
+  const descCour = new Set(
+    transactions.filter(t => t.date.startsWith(prefixCour)).map(t => t.description.toLowerCase())
+  );
+  const manquantes = recPrec.filter(t => !descCour.has(t.description.toLowerCase()));
+
+  const banner = document.getElementById("rappels-banner");
+  if (manquantes.length === 0) { banner.style.display = "none"; return; }
+
+  const noms = manquantes.map(t => `<strong>${t.description}</strong>`).join(", ");
+  banner.innerHTML = `🔔 Rappel : ${manquantes.length} dépense(s) récurrente(s) non saisie(s) ce mois-ci : ${noms}`;
+  banner.style.display = "flex";
+}
+
+// ── Note dans ajout/édition ───────────────────────────────────────────────────
+// (note déjà intégrée dans ajouterTransaction via _pendingTx.note)
+
+// ── Peupler les selects de catégories ────────────────────────────────────────
+function peuplerSelectsCategories() {
+  const cats = toutesCategories();
+  ["f-cat","m-cat"].forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    const current = sel.value;
+    sel.innerHTML = "";
+    cats.forEach(c => {
+      const opt = document.createElement("option");
+      opt.value = c; opt.textContent = c;
+      if (c === current) opt.selected = true;
+      sel.appendChild(opt);
+    });
+  });
+}
+
+// ── Budget par catégorie ──────────────────────────────────────────────────────
+function afficherBudgets(duMois) {
+  const section = document.getElementById("budget-section");
+  if (!section) return;
+  const cats = toutesCategories().filter(c => budgets[c] && budgets[c] > 0);
+  if (cats.length === 0) { section.innerHTML = `<p style="font-size:.78rem;color:var(--sub)">Aucun budget défini. Cliquez sur ⚙️ pour en ajouter.</p>`; return; }
+  section.innerHTML = cats.map(cat => {
+    const depense = duMois.filter(t => t.type === "sortie" && t.categorie === cat).reduce((s,t)=>s+t.montant,0);
+    const budget = budgets[cat];
+    const pct = Math.min((depense / budget) * 100, 100);
+    const cls = pct >= 100 ? "danger" : pct >= 80 ? "warn" : "ok";
+    return `<div class="budget-item">
+      <div class="budget-item-header">
+        <span class="budget-cat">${cat}</span>
+        <span class="budget-amounts">${depense.toFixed(2)} $ / ${budget.toFixed(2)} $</span>
+      </div>
+      <div class="budget-bar-bg"><div class="budget-bar-fill ${cls}" style="width:${pct}%"></div></div>
+    </div>`;
+  }).join("");
+}
+
+function ouvrirBudget() {
+  const cats = toutesCategories().filter(c => c !== "Salaire" && c !== "Épargne");
+  const div = document.getElementById("budget-form-list");
+  div.innerHTML = cats.map(cat => `
+    <div class="budget-form-row">
+      <label>${cat}</label>
+      <input type="number" min="0" step="1" placeholder="0" data-cat="${cat}" value="${budgets[cat] || ""}">
+    </div>`).join("");
+  document.getElementById("budget-overlay").style.display = "flex";
+}
+
+function sauvegarderBudgetForm() {
+  document.querySelectorAll("#budget-form-list input[data-cat]").forEach(inp => {
+    const cat = inp.dataset.cat;
+    const val = parseFloat(inp.value);
+    if (val > 0) budgets[cat] = val;
+    else delete budgets[cat];
+  });
+  sauvegarderBudgets();
+  document.getElementById("budget-overlay").style.display = "none";
+  rafraichir();
+}
+
+// ── Catégories personnalisables ───────────────────────────────────────────────
+function ouvrirCategories() {
+  afficherListeCategories();
+  document.getElementById("categories-overlay").style.display = "flex";
+}
+
+function afficherListeCategories() {
+  const list = document.getElementById("categories-list");
+  list.innerHTML = toutesCategories().map(cat => {
+    const isDef = CATEGORIES_DEFAULT.includes(cat);
+    return `<div class="cat-item${isDef?" default":""}">
+      <span>${cat}</span>
+      ${isDef ? "" : `<button class="btn-cat-del" data-cat="${cat}" title="Supprimer">🗑</button>`}
+    </div>`;
+  }).join("");
+  list.querySelectorAll(".btn-cat-del").forEach(btn => {
+    btn.addEventListener("click", () => supprimerCategorie(btn.dataset.cat));
+  });
+}
+
+function ajouterCategorie() {
+  const inp = document.getElementById("cat-new-input");
+  const nom = inp.value.trim();
+  if (!nom) return;
+  if (categoriesPerso.map(c=>c.toLowerCase()).includes(nom.toLowerCase())) { alert("Cette catégorie existe déjà."); return; }
+  categoriesPerso.push(nom);
+  sauvegarderCategories();
+  peuplerSelectsCategories();
+  afficherListeCategories();
+  inp.value = "";
+}
+
+function supprimerCategorie(cat) {
+  if (CATEGORIES_DEFAULT.includes(cat)) return;
+  if (!confirm(`Supprimer la catégorie « ${cat} » ?`)) return;
+  categoriesPerso = categoriesPerso.filter(c => c !== cat);
+  sauvegarderCategories();
+  peuplerSelectsCategories();
+  afficherListeCategories();
+}
+
+// ── Vue annuelle ──────────────────────────────────────────────────────────────
+function ouvrirVueAnnuelle() {
+  let html = `<table class="annuelle-table"><thead><tr><th>Mois</th><th>Entrées</th><th>Sorties</th><th>Solde</th></tr></thead><tbody>`;
+  let totE=0, totS=0;
+  const now = new Date();
+  for (let m=1; m<=12; m++) {
+    const prefix = `${anneeCourante}-${String(m).padStart(2,"0")}`;
+    const du = transactions.filter(t=>t.date.startsWith(prefix));
+    const e = du.filter(t=>t.type==="entrée").reduce((s,t)=>s+t.montant,0);
+    const s = du.filter(t=>t.type==="sortie").reduce((s,t)=>s+t.montant,0);
+    const sol = e - s;
+    totE+=e; totS+=s;
+    const isCur = m===moisCourant && anneeCourante===now.getFullYear();
+    const solCls = sol>=0?"col-solde-pos":"col-solde-neg";
+    html += `<tr${isCur?' class="mois-courant"':''}>
+      <td>${MOIS_NOMS[m-1]}</td>
+      <td class="col-entree">${e>0?"+"+e.toFixed(2)+" $":"—"}</td>
+      <td class="col-sortie">${s>0?"-"+s.toFixed(2)+" $":"—"}</td>
+      <td class="${solCls}">${(sol>=0?"+":"")+sol.toFixed(2)} $</td>
+    </tr>`;
+  }
+  const totSol = totE-totS;
+  html += `</tbody><tfoot><tr class="annuelle-total">
+    <td><strong>Total ${anneeCourante}</strong></td>
+    <td class="col-entree">+${totE.toFixed(2)} $</td>
+    <td class="col-sortie">-${totS.toFixed(2)} $</td>
+    <td class="${totSol>=0?"col-solde-pos":"col-solde-neg"}">${(totSol>=0?"+":"")+totSol.toFixed(2)} $</td>
+  </tr></tfoot></table>`;
+  document.getElementById("annuelle-result").innerHTML = html;
+  document.getElementById("annuelle-overlay").style.display = "flex";
+}
+
+// ── Graphique camembert ───────────────────────────────────────────────────────
+let _chart = null;
+const CHART_COLORS = ["#1e3a5f","#3b82f6","#22c55e","#ef4444","#f59e0b","#8b5cf6","#ec4899","#14b8a6","#f97316","#64748b"];
+
+function ouvrirGraphique() {
+  const prefix = `${anneeCourante}-${String(moisCourant).padStart(2,"0")}`;
+  const sorties = transactions.filter(t=>t.date.startsWith(prefix)&&t.type==="sortie");
+  const parCat = {};
+  sorties.forEach(t=>{ parCat[t.categorie]=(parCat[t.categorie]||0)+t.montant; });
+  const labels = Object.keys(parCat);
+  const data   = Object.values(parCat);
+  if (!labels.length) { alert("Aucune dépense ce mois-ci."); return; }
+
+  document.getElementById("graphique-overlay").style.display = "flex";
+  if (_chart) { _chart.destroy(); _chart = null; }
+
+  const ctx = document.getElementById("chart-depenses").getContext("2d");
+  _chart = new Chart(ctx, {
+    type: "doughnut",
+    data: { labels, datasets: [{ data, backgroundColor: CHART_COLORS.slice(0,labels.length), borderWidth: 2 }] },
+    options: { plugins: { legend: { display: false } }, cutout: "55%" }
+  });
+
+  const total = data.reduce((s,v)=>s+v,0);
+  document.getElementById("graphique-legende").innerHTML = labels.map((l,i)=>
+    `<div class="legende-item"><div class="legende-dot" style="background:${CHART_COLORS[i%CHART_COLORS.length]}"></div>${l} — ${data[i].toFixed(2)} $ (${(data[i]/total*100).toFixed(1)} %)</div>`
+  ).join("");
 }

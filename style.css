@@ -544,4 +544,228 @@ aside::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px;
   main { flex-direction: column; }
   aside { width: 100%; position: static; max-height: none; }
   .cards { flex-direction: column; }
+  .table-wrap { font-size: .78rem; }
+  th, td { padding: 6px 7px; }
+  .header-btns { display: none; }
+  .search-bar-wrap input { font-size: .85rem; }
 }
+
+/* ═══════════════════════════════════════════════════════════
+   NOUVELLES FEATURES
+   ═══════════════════════════════════════════════════════════ */
+
+/* === MODE SOMBRE === */
+body.dark {
+  --bg:      #0f1923;
+  --panel:   #1a2535;
+  --accent:  #3b82f6;
+  --accent2: #2563eb;
+  --green:   #22c55e;
+  --red:     #ef4444;
+  --text:    #e2e8f0;
+  --sub:     #94a3b8;
+  --entry:   #243044;
+  --border:  #2d3f55;
+}
+body.dark header {
+  background: linear-gradient(135deg, #0f1923 0%, #1a2535 100%);
+}
+body.dark tbody tr:nth-child(even) td { background: #1e2d40; }
+body.dark tbody tr:hover td { background: #243044; }
+body.dark .tr-recurrent td { background: rgba(59,130,246,.08); }
+body.dark .tr-recurrent:hover td { background: rgba(59,130,246,.15) !important; }
+body.dark .compare-table thead tr { background: rgba(59,130,246,.15); }
+body.dark .compare-row-current td { background: rgba(59,130,246,.1); }
+
+/* Bouton thème */
+#btn-theme {
+  background: rgba(255,255,255,.15); color: #fff; border: 1px solid rgba(255,255,255,.25);
+  padding: 5px 10px; border-radius: 5px; cursor: pointer; font-size: 1rem;
+  transition: background .2s; flex-shrink: 0;
+}
+#btn-theme:hover { background: rgba(255,255,255,.28); }
+
+/* === BANNIÈRE RAPPELS === */
+.rappels-banner {
+  background: linear-gradient(90deg, #b45309, #d97706);
+  color: #fff; padding: 10px 24px;
+  font-size: .85rem; font-weight: 600;
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+}
+.rappels-banner strong { font-weight: 700; }
+
+/* === BARRE DE RECHERCHE === */
+.search-bar-wrap {
+  margin-bottom: 6px;
+}
+.search-bar-wrap input {
+  width: 100%; padding: 9px 14px;
+  border: 1px solid var(--border); border-radius: 8px;
+  background: var(--panel); color: var(--text);
+  font-size: .9rem; outline: none;
+  transition: border-color .2s, box-shadow .2s;
+}
+.search-bar-wrap input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(30,58,95,.15);
+}
+
+/* === BUDGET PAR CATÉGORIE === */
+.budget-section {
+  display: flex; flex-direction: column; gap: 7px;
+  margin-bottom: 4px;
+}
+.budget-item { display: flex; flex-direction: column; gap: 3px; }
+.budget-item-header {
+  display: flex; justify-content: space-between;
+  font-size: .78rem; font-weight: 600; color: var(--text);
+}
+.budget-item-header .budget-cat { color: var(--sub); }
+.budget-item-header .budget-amounts { font-size: .75rem; }
+.budget-bar-bg {
+  height: 7px; background: var(--border); border-radius: 10px; overflow: hidden;
+}
+.budget-bar-fill {
+  height: 100%; border-radius: 10px;
+  transition: width .4s ease;
+}
+.budget-bar-fill.ok     { background: var(--green); }
+.budget-bar-fill.warn   { background: #f59e0b; }
+.budget-bar-fill.danger { background: var(--red); }
+
+.btn-budget-edit {
+  background: var(--entry); color: var(--text);
+  border: 1px solid var(--border); border-radius: 6px;
+  padding: 7px 10px; font-size: .82rem; cursor: pointer;
+  transition: background .2s; width: 100%; text-align: left;
+}
+.btn-budget-edit:hover { background: var(--border); }
+
+/* Budget modal form */
+.budget-form-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 0; border-bottom: 1px solid var(--border);
+}
+.budget-form-row:last-child { border-bottom: none; }
+.budget-form-row label { flex: 1; font-size: .85rem; color: var(--text); font-weight: 500; }
+.budget-form-row input {
+  width: 110px; padding: 6px 10px;
+  border: 1px solid var(--border); border-radius: 5px;
+  background: var(--entry); color: var(--text);
+  font-size: .85rem; outline: none;
+  transition: border-color .2s;
+}
+.budget-form-row input:focus { border-color: var(--accent); }
+
+/* === BOUTONS ASIDE OUTILS === */
+.btn-annuelle, .btn-graphique, .btn-categories {
+  background: var(--entry); color: var(--text);
+  border: 1px solid var(--border); border-radius: 6px;
+  padding: 8px 10px; font-size: .85rem; cursor: pointer;
+  transition: background .2s, border-color .2s; width: 100%; text-align: left;
+  font-weight: 500;
+}
+.btn-annuelle:hover  { background: var(--border); border-color: var(--accent); }
+.btn-graphique:hover { background: var(--border); border-color: var(--accent); }
+.btn-categories:hover{ background: var(--border); border-color: var(--accent); }
+
+/* === MODAL LARGE === */
+.modal-large {
+  width: 560px; max-width: 96vw;
+  max-height: 88vh; overflow-y: auto;
+  gap: 0; padding: 0;
+}
+
+/* === MODAL GRAPHIQUE === */
+.modal-graphique {
+  width: 420px; max-width: 96vw;
+  gap: 0; padding: 0;
+}
+.graphique-body {
+  padding: 18px; display: flex; flex-direction: column; align-items: center; gap: 16px;
+}
+.graphique-body canvas { max-width: 280px; max-height: 280px; }
+.graphique-legende {
+  display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;
+  font-size: .78rem;
+}
+.legende-item {
+  display: flex; align-items: center; gap: 5px;
+  background: var(--entry); border-radius: 20px;
+  padding: 3px 10px; border: 1px solid var(--border);
+}
+.legende-dot {
+  width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+}
+
+/* === VUE ANNUELLE === */
+.annuelle-table {
+  width: 100%; border-collapse: collapse; font-size: .82rem;
+}
+.annuelle-table thead tr { background: rgba(30,58,95,.1); }
+.annuelle-table th {
+  padding: 8px 10px; text-align: center;
+  font-size: .75rem; font-weight: 700; color: var(--accent);
+  text-transform: uppercase; letter-spacing: .04em;
+}
+.annuelle-table td {
+  padding: 7px 10px; text-align: center;
+  border-bottom: 1px solid var(--border); color: var(--sub);
+}
+.annuelle-table tbody tr:last-child td { border-bottom: none; }
+.annuelle-table tbody tr:hover { background: var(--entry); }
+.annuelle-table .mois-courant td { color: var(--text); font-weight: 700; background: rgba(30,58,95,.06); }
+.annuelle-table .col-entree { color: var(--green); font-weight: 600; }
+.annuelle-table .col-sortie { color: var(--red);   font-weight: 600; }
+.annuelle-table .col-solde-pos { color: var(--green); font-weight: 700; }
+.annuelle-table .col-solde-neg { color: var(--red);   font-weight: 700; }
+.annuelle-total td { font-weight: 700; color: var(--text); background: rgba(30,58,95,.08); border-top: 2px solid var(--border); }
+
+/* === CATÉGORIES === */
+.categories-list {
+  display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px;
+}
+.cat-item {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 12px; background: var(--entry);
+  border-radius: 7px; border: 1px solid var(--border);
+  font-size: .85rem; color: var(--text);
+}
+.cat-item.default { opacity: .7; }
+.btn-cat-del {
+  background: transparent; border: none; color: var(--sub);
+  cursor: pointer; font-size: .9rem; padding: 2px 6px;
+  border-radius: 4px; transition: color .2s, background .2s;
+}
+.btn-cat-del:hover { color: var(--red); background: #fef2f2; }
+.cat-add-row {
+  display: flex; gap: 8px; margin-top: 4px;
+}
+.cat-add-row input {
+  flex: 1; padding: 8px 12px;
+  border: 1px solid var(--border); border-radius: 6px;
+  background: var(--entry); color: var(--text);
+  font-size: .85rem; outline: none;
+  transition: border-color .2s;
+}
+.cat-add-row input:focus { border-color: var(--accent); }
+.cat-add-row .btn-save { flex-shrink: 0; padding: 8px 14px; font-size: .85rem; }
+.cat-note {
+  font-size: .75rem; color: var(--sub); margin-top: 8px;
+  padding: 6px 10px; background: rgba(180,83,9,.08);
+  border-radius: 6px; border-left: 3px solid #f59e0b;
+}
+
+/* === NOTE DANS LE TABLEAU === */
+.tx-note {
+  font-size: .72rem; color: var(--sub); font-style: italic;
+  display: block; margin-top: 2px;
+}
+
+/* === BOUTON DUPLIQUER === */
+.btn-dup {
+  background: transparent; border: none; color: var(--sub);
+  cursor: pointer; font-size: .95rem; padding: 2px 6px; border-radius: 4px;
+  transition: color .2s, background .2s;
+}
+.btn-dup:hover { color: var(--accent); background: #eef2f8; }
