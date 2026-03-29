@@ -502,7 +502,8 @@ function exporterCSV() {
   const rows   = data.map(t =>
     `${t.date},"${(t.description||"").replace(/"/g,'""')}","${(t.categorie||"").replace(/"/g,'""')}",${t.type},${t.montant},${t.recurrence||"non"},"${(t.note||"").replace(/"/g,'""')}"`
   ).join("\n");
-  telecharger(header+rows, `cashews_${anneeCourante}_${String(moisCourant).padStart(2,"0")}.csv`, "text/csv");
+  const today = new Date().toISOString().slice(0,10).replace(/-/g,"_");
+  telecharger(header+rows, `cashews_${today}.csv`, "text/csv");
 }
 
 // ── Export JSON ───────────────────────────────────────────────────────────────
@@ -510,8 +511,8 @@ function exporterJSON() {
   const prefix = `${anneeCourante}-${String(moisCourant).padStart(2,"0")}`;
   const data   = transactions.filter(t => t.date.startsWith(prefix));
   if (!data.length) return alert("Aucune transaction ce mois-ci.");
-  telecharger(JSON.stringify(data, null, 2),
-    `cashews_${anneeCourante}_${String(moisCourant).padStart(2,"0")}.json`, "application/json");
+  const today = new Date().toISOString().slice(0,10).replace(/-/g,"_");
+  telecharger(JSON.stringify(data, null, 2), `cashews_${today}.json`, "application/json");
 }
 
 function telecharger(contenu, nom, type) {
