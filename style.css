@@ -539,15 +539,116 @@ aside::-webkit-scrollbar { width: 4px; }
 aside::-webkit-scrollbar-track { background: transparent; }
 aside::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
 
-/* === RESPONSIVE === */
+/* === RESPONSIVE MOBILE === */
 @media (max-width: 700px) {
-  main { flex-direction: column; }
-  aside { width: 100%; position: static; max-height: none; }
-  .cards { flex-direction: column; }
+  /* Header */
+  header {
+    padding: 8px 12px;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .logo { font-size: 1.1rem; }
+  .mois-nav, .annee-nav { gap: 5px; }
+  #lbl-mois { min-width: 90px; font-size: .9rem; }
+  #lbl-annee { min-width: 40px; font-size: .85rem; }
+  .mois-nav button, .annee-nav button { padding: 4px 8px; font-size: .85rem; }
+
+  /* Boutons header — visibles mais compacts */
+  .header-btns { display: flex; gap: 4px; flex-wrap: wrap; }
+  .header-btns button { padding: 5px 8px; font-size: .72rem; }
+  #btn-theme { padding: 5px 8px; font-size: .9rem; }
+  .langue-switcher { display: flex; align-items: center; gap: 2px; }
+  .langue-lien { color: rgba(255,255,255,.6); font-size: .8rem; font-weight: 600; text-decoration: none !important; padding: 3px 6px; border-radius: 4px; transition: color .2s, background .2s; }
+  .langue-lien:hover { color: #fff !important; background: rgba(255,255,255,.18); }
+  .langue-lien.active { color: #fff !important; font-weight: 700; text-decoration: underline !important; }
+  .langue-sep { color: rgba(255,255,255,.4); font-size: .8rem; }
+
+  /* Bannière rappels */
+  .rappels-banner { padding: 8px 12px; font-size: .8rem; }
+
+  /* Cartes */
+  .cards { flex-direction: column; padding: 10px 12px; gap: 8px; }
+  .card { padding: 12px 16px; }
+  .card-val { font-size: 1.2rem; }
+
+  /* Main layout */
+  main { flex-direction: column; padding: 0 12px 16px; gap: 12px; }
+
+  /* Aside */
+  aside {
+    width: 100%;
+    position: static;
+    max-height: none;
+    padding: 14px;
+  }
+
+  /* Tableau */
   .table-wrap { font-size: .78rem; }
-  th, td { padding: 6px 7px; }
-  .header-btns { display: none; }
-  .search-bar-wrap input { font-size: .85rem; }
+  th, td { padding: 7px 6px; }
+
+  /* Masquer colonnes Catégorie et Type sur mobile */
+  thead tr th:nth-child(3),
+  thead tr th:nth-child(4),
+  tbody tr td:nth-child(3),
+  tbody tr td:nth-child(4) { display: none; }
+
+  /* Boutons actions dans le tableau — plus grands pour le touch */
+  .btn-del, .btn-edit, .btn-dup, .btn-statut {
+    font-size: 1.05rem;
+    padding: 4px 7px;
+    min-height: 36px;
+    min-width: 36px;
+  }
+
+  /* Recherche */
+  .search-bar-wrap input { font-size: .85rem; padding: 8px 12px; }
+
+  /* Filtres */
+  .filter-bar { gap: 10px; font-size: .8rem; flex-wrap: wrap; }
+
+  /* Modals — pleine largeur */
+  .modal { width: 96vw; padding: 16px; }
+  .modal-large { width: 96vw; max-height: 90vh; }
+  .modal-analyse { width: 96vw; }
+  .modal-graphique { width: 96vw; }
+  .modal-recurrence { width: 92vw; }
+
+  /* Boutons modals — touch-friendly */
+  .btn-save, .btn-cancel, .btn-add, .btn-rec {
+    min-height: 44px;
+    font-size: .9rem;
+  }
+  .modal-btns { gap: 8px; }
+
+  /* Popup rappels — items en colonne sur petit écran */
+  .rappel-item {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .rappel-desc { min-width: 100%; order: 1; }
+  .rappel-item input[type="checkbox"] { order: 0; }
+  .rappel-montant-input { order: 2; width: 70px; }
+  .rappel-dollar { order: 3; }
+  .rappel-rec { order: 4; }
+  .rappel-cat { order: 5; }
+
+  .rappels-top-bar { flex-direction: column; align-items: flex-start; gap: 6px; }
+  .rappels-check-btns { width: 100%; }
+  .btn-check-all { flex: 1; text-align: center; }
+
+  .rappels-actions { flex-direction: column; }
+  .rappels-actions .btn-save,
+  .btn-del-style { width: 100%; min-height: 44px; }
+
+  /* Vue annuelle — tableau compact */
+  .annuelle-table th, .annuelle-table td { padding: 5px 6px; font-size: .75rem; }
+
+  /* Budget */
+  .budget-form-row { flex-wrap: wrap; }
+  .budget-form-row input { width: 100%; }
+
+  /* Graphique */
+  .graphique-body canvas { max-width: 220px; max-height: 220px; }
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -577,6 +678,56 @@ body.dark .tr-recurrent:hover td { background: rgba(59,130,246,.15) !important; 
 body.dark .compare-table thead tr { background: rgba(59,130,246,.15); }
 body.dark .compare-row-current td { background: rgba(59,130,246,.1); }
 
+/* === DROPDOWN EXPORT === */
+.export-dropdown {
+  position: relative;
+  display: inline-block;
+}
+.btn-export-toggle {
+  background: rgba(255,255,255,.15); color: #ffffff;
+  border: 1px solid rgba(255,255,255,.25);
+  padding: 5px 12px; border-radius: 5px; cursor: pointer;
+  font-size: .8rem; transition: background .2s;
+  white-space: nowrap;
+}
+.btn-export-toggle:hover { background: rgba(255,255,255,.28); }
+
+.export-menu {
+  display: none;
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0,0,0,.18);
+  list-style: none;
+  min-width: 160px;
+  z-index: 300;
+  overflow: hidden;
+}
+.export-menu.open { display: block; }
+
+.export-menu li button {
+  display: block; width: 100%;
+  padding: 10px 16px; text-align: left;
+  background: transparent; border: none;
+  color: var(--text); font-size: .85rem; cursor: pointer;
+  transition: background .15s;
+}
+.export-menu li button:hover { background: var(--entry); color: var(--accent); }
+
+.export-sep {
+  height: 1px; background: var(--border); margin: 4px 0;
+}
+
+/* Mode sombre — dropdown */
+body.dark .export-menu {
+  background: var(--panel);
+  border-color: var(--border);
+}
+body.dark .export-menu li button:hover { background: var(--entry); }
+
 /* Bouton thème */
 #btn-theme {
   background: rgba(255,255,255,.15); color: #fff; border: 1px solid rgba(255,255,255,.25);
@@ -584,6 +735,20 @@ body.dark .compare-row-current td { background: rgba(59,130,246,.1); }
   transition: background .2s; flex-shrink: 0;
 }
 #btn-theme:hover { background: rgba(255,255,255,.28); }
+
+/* === SÉLECTEUR DE LANGUE FR / EN === */
+.langue-switcher { display: flex; align-items: center; gap: 2px; }
+.langue-lien {
+  color: rgba(255,255,255,.6) !important;
+  font-size: .8rem; font-weight: 600;
+  text-decoration: none !important;
+  padding: 3px 6px; border-radius: 4px;
+  transition: color .2s, background .2s;
+  cursor: pointer;
+}
+.langue-lien:hover { color: #fff !important; background: rgba(255,255,255,.18); }
+.langue-lien.active { color: #fff !important; font-weight: 700; text-decoration: underline !important; }
+.langue-sep { color: rgba(255,255,255,.4); font-size: .8rem; }
 
 /* === BANNIÈRE RAPPELS === */
 .rappels-banner {
@@ -761,14 +926,6 @@ body.dark .compare-row-current td { background: rgba(59,130,246,.1); }
   font-size: .72rem; color: var(--sub); font-style: italic;
   display: block; margin-top: 2px;
 }
-
-/* === BOUTON DUPLIQUER === */
-.btn-dup {
-  background: transparent; border: none; color: var(--sub);
-  cursor: pointer; font-size: .95rem; padding: 2px 6px; border-radius: 4px;
-  transition: color .2s, background .2s;
-}
-.btn-dup:hover { color: var(--accent); background: #eef2f8; }
 
 /* === BANNIÈRE RAPPELS — bouton Voir === */
 .btn-rappels-voir {

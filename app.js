@@ -39,10 +39,29 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Boutons header
   document.getElementById("btn-importer").addEventListener("click", importerFichier);
-  document.getElementById("btn-export-csv").addEventListener("click", exporterCSV);
-  document.getElementById("btn-export-json").addEventListener("click", exporterJSON);
   document.getElementById("file-input").addEventListener("change", lireFichier);
   document.getElementById("btn-theme").addEventListener("click", toggleTheme);
+  document.getElementById("btn-langue-fr").addEventListener("click", e => { e.preventDefault(); setLangue("fr"); });
+  document.getElementById("btn-langue-en").addEventListener("click", e => { e.preventDefault(); setLangue("en"); });
+
+  // Dropdown Export
+  const exportToggle = document.getElementById("btn-export-toggle");
+  const exportMenu   = document.getElementById("export-menu");
+  exportToggle.addEventListener("click", e => {
+    e.stopPropagation();
+    const open = exportMenu.classList.toggle("open");
+    exportToggle.setAttribute("aria-expanded", open);
+  });
+  document.addEventListener("click", () => {
+    exportMenu.classList.remove("open");
+    exportToggle.setAttribute("aria-expanded", "false");
+  });
+  exportMenu.addEventListener("click", e => e.stopPropagation());
+
+  document.getElementById("btn-export-csv").addEventListener("click", () => { exporterCSV(); exportMenu.classList.remove("open"); });
+  document.getElementById("btn-export-json").addEventListener("click", () => { exporterJSON(); exportMenu.classList.remove("open"); });
+  document.getElementById("btn-export-csv-all").addEventListener("click", () => { exporterCSVAll(); exportMenu.classList.remove("open"); });
+  document.getElementById("btn-export-json-all").addEventListener("click", () => { exporterJSONAll(); exportMenu.classList.remove("open"); });
 
   // Formulaire principal
   document.getElementById("form-transaction").addEventListener("submit", e => {
@@ -131,6 +150,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // Peupler les selects de catégories
   peuplerSelectsCategories();
 
+  appliquerTraduction();
   majNavLabel();
   rafraichir();
   verifierRappels();
@@ -271,11 +291,11 @@ function _creerLigne(t) {
   tdDesc.innerHTML = `${t.description} ${recBadge}${estimeBadge}${t.note ? `<span class="tx-note">${t.note}</span>` : ""}`;
 
   const tdCat = document.createElement("td");
-  tdCat.textContent = t.categorie;
+  tdCat.textContent = tCat(t.categorie);
 
   const tdType = document.createElement("td");
   tdType.className = cls;
-  tdType.textContent = t.type.charAt(0).toUpperCase() + t.type.slice(1);
+  tdType.textContent = window.t(t.type === "entrée" ? "radio-entree" : "radio-sortie");
 
   const tdMontant = document.createElement("td");
   tdMontant.className = cls + (estEstime ? " montant-estime" : "");
@@ -305,12 +325,6 @@ function _creerLigne(t) {
     tdActions.appendChild(btnStatut);
   }
 
-  const btnDup = document.createElement("button");
-  btnDup.className = "btn-dup";
-  btnDup.title = "Dupliquer";
-  btnDup.setAttribute("aria-label", `Dupliquer ${t.description}`);
-  btnDup.textContent = "📋";
-  btnDup.addEventListener("click", () => dupliquer(idx));
 
   const btnEdit = document.createElement("button");
   btnEdit.className = "btn-edit";
@@ -326,7 +340,6 @@ function _creerLigne(t) {
   btnDel.textContent = "🗑";
   btnDel.addEventListener("click", () => supprimer(idx));
 
-  tdActions.appendChild(btnDup);
   tdActions.appendChild(btnEdit);
   tdActions.appendChild(btnDel);
 
@@ -351,9 +364,9 @@ function ajouterTransaction() {
   const type    = document.querySelector('input[name="type"]:checked').value;
   const cat     = document.getElementById("f-cat").value;
 
-  if (!desc)            return alert("Veuillez entrer une description.");
-  if (!montant || montant <= 0) return alert("Veuillez entrer un montant positif.");
-  if (!date)            return alert("Veuillez entrer une date.");
+  if (!desc)            return alert(t("alert-desc"));
+  if (!montant || montant <= 0) return alert(t("alert-montant"));
+  if (!date)            return alert(t("alert-date"));
 
   const note = (document.getElementById("f-note")?.value || "").trim();
   if (type === "sortie") {
@@ -395,8 +408,8 @@ function _resetFormulaire() {
 
 // ── Supprimer ─────────────────────────────────────────────────────────────────
 function supprimer(idx) {
-  const t = transactions[idx];
-  if (confirm(`Supprimer « ${t.description} » ?`)) {
+  const tx = transactions[idx];
+  if (confirm(`${window.t("confirm-supprimer")} « ${tx.description} » ${window.t("confirm-supprimer-fin")}`)) {
     transactions.splice(idx, 1);
     sauvegarder();
     rafraichir();
@@ -516,9 +529,9 @@ function sauvegarderModif() {
   const type    = document.querySelector('input[name="m-type"]:checked').value;
   const cat     = document.getElementById("m-cat").value;
 
-  if (!desc)             return alert("Veuillez entrer une description.");
-  if (!montant || montant <= 0) return alert("Veuillez entrer un montant positif.");
-  if (!date)             return alert("Veuillez entrer une date.");
+  if (!desc)             return alert(t("alert-desc"));
+  if (!montant || montant <= 0) return alert(t("alert-montant"));
+  if (!date)             return alert(t("alert-date"));
 
   let recurrence = "non";
   if (type === "sortie") {
@@ -533,26 +546,45 @@ function sauvegarderModif() {
   rafraichir();
 }
 
-// ── Export CSV ────────────────────────────────────────────────────────────────
-function exporterCSV() {
-  const prefix = `${anneeCourante}-${String(moisCourant).padStart(2,"0")}`;
-  const data   = transactions.filter(t => t.date.startsWith(prefix));
-  if (!data.length) return alert("Aucune transaction ce mois-ci.");
+// ── Helpers export ────────────────────────────────────────────────────────────
+function _csvRows(data) {
   const header = "date,description,categorie,type,montant,recurrence,statut,note\n";
-  const rows   = data.map(t =>
+  const rows = data.map(t =>
     `${t.date},"${(t.description||"").replace(/"/g,'""')}","${(t.categorie||"").replace(/"/g,'""')}",${t.type},${t.montant},${t.recurrence||"non"},${t.statut||"payé"},"${(t.note||"").replace(/"/g,'""')}"`
   ).join("\n");
-  const today = new Date().toISOString().slice(0,10).replace(/-/g,"_");
-  telecharger(header+rows, `cashews_${today}.csv`, "text/csv");
+  return header + rows;
 }
 
-// ── Export JSON ───────────────────────────────────────────────────────────────
+// ── Export CSV — mois courant ─────────────────────────────────────────────────
+function exporterCSV() {
+  const prefix = `${anneeCourante}-${String(moisCourant).padStart(2,"0")}`;
+  const data = transactions.filter(t => t.date.startsWith(prefix));
+  if (!data.length) return alert(t("alert-no-tx-mois"));
+  const moisLabel = `${anneeCourante}_${String(moisCourant).padStart(2,"0")}`;
+  telecharger(_csvRows(data), `cashews_${moisLabel}.csv`, "text/csv");
+}
+
+// ── Export JSON — mois courant ────────────────────────────────────────────────
 function exporterJSON() {
   const prefix = `${anneeCourante}-${String(moisCourant).padStart(2,"0")}`;
-  const data   = transactions.filter(t => t.date.startsWith(prefix));
-  if (!data.length) return alert("Aucune transaction ce mois-ci.");
+  const data = transactions.filter(t => t.date.startsWith(prefix));
+  if (!data.length) return alert(t("alert-no-tx-mois"));
+  const moisLabel = `${anneeCourante}_${String(moisCourant).padStart(2,"0")}`;
+  telecharger(JSON.stringify(data, null, 2), `cashews_${moisLabel}.json`, "application/json");
+}
+
+// ── Export CSV All — toutes les données ───────────────────────────────────────
+function exporterCSVAll() {
+  if (!transactions.length) return alert(t("alert-no-tx-export"));
   const today = new Date().toISOString().slice(0,10).replace(/-/g,"_");
-  telecharger(JSON.stringify(data, null, 2), `cashews_${today}.json`, "application/json");
+  telecharger(_csvRows(transactions), `cashews_tout_${today}.csv`, "text/csv");
+}
+
+// ── Export JSON All — toutes les données ──────────────────────────────────────
+function exporterJSONAll() {
+  if (!transactions.length) return alert(t("alert-no-tx-export"));
+  const today = new Date().toISOString().slice(0,10).replace(/-/g,"_");
+  telecharger(JSON.stringify(transactions, null, 2), `cashews_tout_${today}.json`, "application/json");
 }
 
 function telecharger(contenu, nom, type) {
@@ -814,28 +846,19 @@ function lireFichier(event) {
           return obj;
         });
       }
-      if (!confirm(`Importer ${nouvelles.length} transaction(s) ?\n⚠️ Cela remplacera toutes vos données actuelles.`)) return;
+      if (!confirm(`Importer ${nouvelles.length} ${t("confirm-import")}`)) return;
       transactions.length = 0;
       nouvelles.forEach(n => transactions.push(n));
       sauvegarder();
       rafraichir();
       verifierRappels();
-      alert(`✅ ${nouvelles.length} transaction(s) importée(s) avec succès.`);
+      alert(`✅ ${nouvelles.length} ${t("alert-import-ok")}`);
     } catch(err) {
-      alert("Erreur lors de l'import : " + err.message);
+      alert(t("alert-import-err") + err.message);
     }
     event.target.value = "";
   };
   reader.readAsText(file);
-}
-
-// ── Note & Duplication ────────────────────────────────────────────────────────
-function dupliquer(idx) {
-  const t = transactions[idx];
-  const copie = { ...t, date: new Date().toISOString().slice(0,10) };
-  transactions.push(copie);
-  sauvegarder();
-  rafraichir();
 }
 
 // ── Mode sombre/clair ─────────────────────────────────────────────────────────
@@ -888,7 +911,7 @@ function ouvrirRappels() {
 
 function traiterRappelsAjouter() {
   const cases = document.querySelectorAll(".rappel-cb:checked");
-  if (cases.length === 0) { alert("Cochez au moins une dépense."); return; }
+  if (cases.length === 0) { alert(t("alert-rappel-cocher")); return; }
   const prefixCour = `${anneeCourante}-${String(moisCourant).padStart(2,"0")}`;
   // Nombre de jours dans le mois courant
   const joursDansMoisCour = new Date(anneeCourante, moisCourant, 0).getDate();
@@ -922,8 +945,8 @@ function traiterRappelsAjouter() {
 
 function traiterRappelsSupprimer() {
   const cases = document.querySelectorAll(".rappel-cb:checked");
-  if (cases.length === 0) { alert("Cochez au moins une dépense."); return; }
-  if (!confirm("Retirer la récurrence des dépenses cochées ? (elles ne seront plus rappelées)")) return;
+  if (cases.length === 0) { alert(t("alert-rappel-cocher")); return; }
+  if (!confirm(t("confirm-retirer-rec"))) return;
   cases.forEach(cb => {
     const t = _rappelsManquantes[parseInt(cb.dataset.idx)];
     // Trouver la transaction d'origine et retirer sa récurrence
@@ -952,7 +975,7 @@ function peuplerSelectsCategories() {
     sel.innerHTML = "";
     cats.forEach(c => {
       const opt = document.createElement("option");
-      opt.value = c; opt.textContent = c;
+      opt.value = c; opt.textContent = tCat(c);
       if (c === current) opt.selected = true;
       sel.appendChild(opt);
     });
@@ -1027,7 +1050,7 @@ function ajouterCategorie() {
   const inp = document.getElementById("cat-new-input");
   const nom = inp.value.trim();
   if (!nom) return;
-  if (categoriesPerso.map(c=>c.toLowerCase()).includes(nom.toLowerCase())) { alert("Cette catégorie existe déjà."); return; }
+  if (categoriesPerso.map(c=>c.toLowerCase()).includes(nom.toLowerCase())) { alert(t("alert-cat-existe")); return; }
   categoriesPerso.push(nom);
   sauvegarderCategories();
   peuplerSelectsCategories();
@@ -1037,7 +1060,7 @@ function ajouterCategorie() {
 
 function supprimerCategorie(cat) {
   if (CATEGORIES_DEFAULT.includes(cat)) return;
-  if (!confirm(`Supprimer la catégorie « ${cat} » ?`)) return;
+  if (!confirm(`${t("confirm-suppr-cat")} « ${cat} » ${t("confirm-supprimer-fin")}`)) return;
   categoriesPerso = categoriesPerso.filter(c => c !== cat);
   sauvegarderCategories();
   peuplerSelectsCategories();
@@ -1087,7 +1110,7 @@ function ouvrirGraphique() {
   sorties.forEach(t=>{ parCat[t.categorie]=(parCat[t.categorie]||0)+t.montant; });
   const labels = Object.keys(parCat);
   const data   = Object.values(parCat);
-  if (!labels.length) { alert("Aucune dépense ce mois-ci."); return; }
+  if (!labels.length) { alert(t("alert-no-depense")); return; }
 
   document.getElementById("graphique-overlay").style.display = "flex";
   if (_chart) { _chart.destroy(); _chart = null; }
