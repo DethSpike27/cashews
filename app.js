@@ -76,6 +76,20 @@ document.addEventListener("DOMContentLoaded", () => {
     if (e.target === document.getElementById("categories-overlay")) document.getElementById("categories-overlay").style.display = "none";
   });
 
+  // Rappels modal
+  document.getElementById("btn-close-rappels").addEventListener("click", () => document.getElementById("rappels-overlay").style.display = "none");
+  document.getElementById("rappels-overlay").addEventListener("click", e => {
+    if (e.target === document.getElementById("rappels-overlay")) document.getElementById("rappels-overlay").style.display = "none";
+  });
+  document.getElementById("btn-rappels-ajouter").addEventListener("click", traiterRappelsAjouter);
+  document.getElementById("btn-rappels-supprimer").addEventListener("click", traiterRappelsSupprimer);
+  document.getElementById("btn-rappels-cocher-tout").addEventListener("click", () => {
+    document.querySelectorAll(".rappel-cb").forEach(cb => cb.checked = true);
+  });
+  document.getElementById("btn-rappels-decocher-tout").addEventListener("click", () => {
+    document.querySelectorAll(".rappel-cb").forEach(cb => cb.checked = false);
+  });
+
   // Boutons fermer modals
   document.getElementById("btn-close-analyse").addEventListener("click", () => document.getElementById("analyse-overlay").style.display = "none");
   document.getElementById("btn-close-annuelle").addEventListener("click", () => document.getElementById("annuelle-overlay").style.display = "none");
@@ -131,22 +145,22 @@ function majNavLabel() {
 function moisPrecedent() {
   if (moisCourant === 1) { moisCourant = 12; anneeCourante--; }
   else moisCourant--;
-  majNavLabel(); rafraichir();
+  majNavLabel(); rafraichir(); verifierRappels();
 }
 function moisSuivant() {
   if (moisCourant === 12) { moisCourant = 1; anneeCourante++; }
   else moisCourant++;
-  majNavLabel(); rafraichir();
+  majNavLabel(); rafraichir(); verifierRappels();
 }
 
 // ── Navigation année ──────────────────────────────────────────────────────────
 function anneePrecedente() {
   anneeCourante--;
-  majNavLabel(); rafraichir();
+  majNavLabel(); rafraichir(); verifierRappels();
 }
 function anneeSuivante() {
   anneeCourante++;
-  majNavLabel(); rafraichir();
+  majNavLabel(); rafraichir(); verifierRappels();
 }
 
 // ── Rafraîchir ────────────────────────────────────────────────────────────────
@@ -242,15 +256,19 @@ function _creerLigne(t) {
   const cls   = t.type === "entrée" ? "entree" : "sortie";
   const idx   = transactions.indexOf(t);
   const recBadge = _recBadge(t);
-  const recCls   = (t.type === "sortie" && t.recurrence && t.recurrence !== "non") ? " tr-recurrent" : "";
+  const estEstime = t.statut === "estimé";
+  const isRec = t.type === "sortie" && t.recurrence && t.recurrence !== "non";
+  let recCls = isRec ? " tr-recurrent" : "";
+  if (estEstime) recCls += " tr-estime";
   const tr = document.createElement("tr");
-  tr.className = recCls;
+  tr.className = recCls.trim();
 
   const tdDate = document.createElement("td");
   tdDate.textContent = t.date;
 
   const tdDesc = document.createElement("td");
-  tdDesc.innerHTML = `${t.description} ${recBadge}${t.note ? `<span class="tx-note">${t.note}</span>` : ""}`;
+  const estimeBadge = estEstime ? `<span class="badge-estime" title="Dépense estimée — non confirmée">Est.</span>` : "";
+  tdDesc.innerHTML = `${t.description} ${recBadge}${estimeBadge}${t.note ? `<span class="tx-note">${t.note}</span>` : ""}`;
 
   const tdCat = document.createElement("td");
   tdCat.textContent = t.categorie;
@@ -260,10 +278,32 @@ function _creerLigne(t) {
   tdType.textContent = t.type.charAt(0).toUpperCase() + t.type.slice(1);
 
   const tdMontant = document.createElement("td");
-  tdMontant.className = cls;
+  tdMontant.className = cls + (estEstime ? " montant-estime" : "");
   tdMontant.textContent = `${signe}${parseFloat(t.montant).toFixed(2)} $`;
 
   const tdActions = document.createElement("td");
+
+  // Bouton payé/estimé (seulement pour les sorties récurrentes)
+  if (isRec) {
+    const btnStatut = document.createElement("button");
+    if (estEstime) {
+      btnStatut.className = "btn-statut btn-statut-estime";
+      btnStatut.title = "Marquer comme payé";
+      btnStatut.setAttribute("aria-label", `Marquer ${t.description} comme payé`);
+      btnStatut.textContent = "💳";
+    } else {
+      btnStatut.className = "btn-statut btn-statut-paye";
+      btnStatut.title = "Marquer comme estimé";
+      btnStatut.setAttribute("aria-label", `Marquer ${t.description} comme estimé`);
+      btnStatut.textContent = "✅";
+    }
+    btnStatut.addEventListener("click", () => {
+      transactions[idx].statut = estEstime ? "payé" : "estimé";
+      sauvegarder();
+      rafraichir();
+    });
+    tdActions.appendChild(btnStatut);
+  }
 
   const btnDup = document.createElement("button");
   btnDup.className = "btn-dup";
@@ -498,9 +538,9 @@ function exporterCSV() {
   const prefix = `${anneeCourante}-${String(moisCourant).padStart(2,"0")}`;
   const data   = transactions.filter(t => t.date.startsWith(prefix));
   if (!data.length) return alert("Aucune transaction ce mois-ci.");
-  const header = "date,description,categorie,type,montant,recurrence,note\n";
+  const header = "date,description,categorie,type,montant,recurrence,statut,note\n";
   const rows   = data.map(t =>
-    `${t.date},"${(t.description||"").replace(/"/g,'""')}","${(t.categorie||"").replace(/"/g,'""')}",${t.type},${t.montant},${t.recurrence||"non"},"${(t.note||"").replace(/"/g,'""')}"`
+    `${t.date},"${(t.description||"").replace(/"/g,'""')}","${(t.categorie||"").replace(/"/g,'""')}",${t.type},${t.montant},${t.recurrence||"non"},${t.statut||"payé"},"${(t.note||"").replace(/"/g,'""')}"`
   ).join("\n");
   const today = new Date().toISOString().slice(0,10).replace(/-/g,"_");
   telecharger(header+rows, `cashews_${today}.csv`, "text/csv");
@@ -758,6 +798,8 @@ function lireFichier(event) {
       let nouvelles = [];
       if (file.name.endsWith(".json")) {
         nouvelles = JSON.parse(e.target.result);
+        // Normaliser le champ statut si absent
+        nouvelles = nouvelles.map(n => ({ ...n, statut: n.statut || "payé" }));
       } else {
         const lines = e.target.result.trim().split("\n");
         const headers = lines[0].split(",");
@@ -767,6 +809,7 @@ function lireFichier(event) {
           headers.forEach((h,i) => obj[h.trim()] = (vals[i]||"").replace(/^"|"$/g,"").trim());
           obj.montant    = parseFloat(obj.montant) || 0;
           obj.recurrence = obj.recurrence || "non";
+          obj.statut     = obj.statut || "payé";
           obj.note       = obj.note || "";
           return obj;
         });
@@ -776,6 +819,7 @@ function lireFichier(event) {
       nouvelles.forEach(n => transactions.push(n));
       sauvegarder();
       rafraichir();
+      verifierRappels();
       alert(`✅ ${nouvelles.length} transaction(s) importée(s) avec succès.`);
     } catch(err) {
       alert("Erreur lors de l'import : " + err.message);
@@ -802,6 +846,8 @@ function toggleTheme() {
 }
 
 // ── Rappels récurrents ────────────────────────────────────────────────────────
+let _rappelsManquantes = [];
+
 function verifierRappels() {
   const moisPrec = moisCourant === 1 ? 12 : moisCourant - 1;
   const anneePrec = moisCourant === 1 ? anneeCourante - 1 : anneeCourante;
@@ -815,14 +861,82 @@ function verifierRappels() {
   const descCour = new Set(
     transactions.filter(t => t.date.startsWith(prefixCour)).map(t => t.description.toLowerCase())
   );
-  const manquantes = recPrec.filter(t => !descCour.has(t.description.toLowerCase()));
+  _rappelsManquantes = recPrec.filter(t => !descCour.has(t.description.toLowerCase()));
 
   const banner = document.getElementById("rappels-banner");
-  if (manquantes.length === 0) { banner.style.display = "none"; return; }
+  if (_rappelsManquantes.length === 0) { banner.style.display = "none"; return; }
 
-  const noms = manquantes.map(t => `<strong>${t.description}</strong>`).join(", ");
-  banner.innerHTML = `🔔 Rappel : ${manquantes.length} dépense(s) récurrente(s) non saisie(s) ce mois-ci : ${noms}`;
+  banner.innerHTML = `🔔 <strong>${_rappelsManquantes.length}</strong> dépense(s) récurrente(s) non saisie(s) ce mois-ci &nbsp;<button id="btn-voir-rappels" class="btn-rappels-voir">Voir →</button>`;
   banner.style.display = "flex";
+  document.getElementById("btn-voir-rappels").addEventListener("click", ouvrirRappels);
+}
+
+function ouvrirRappels() {
+  const liste = document.getElementById("rappels-liste");
+  liste.innerHTML = _rappelsManquantes.map((t, i) => `
+    <div class="rappel-item">
+      <input type="checkbox" class="rappel-cb" data-idx="${i}" checked>
+      <span class="rappel-desc">${t.description}</span>
+      <input type="number" class="rappel-montant-input" data-idx="${i}" value="${t.montant.toFixed(2)}" min="0.01" step="0.01" title="Modifier le montant">
+      <span class="rappel-dollar">$</span>
+      <span class="rappel-rec">${t.recurrence === "2x" ? "🔁🔁 2×/mois" : "🔁 1×/mois"}</span>
+      <span class="rappel-cat">${t.categorie}</span>
+    </div>
+  `).join("");
+  document.getElementById("rappels-overlay").style.display = "flex";
+}
+
+function traiterRappelsAjouter() {
+  const cases = document.querySelectorAll(".rappel-cb:checked");
+  if (cases.length === 0) { alert("Cochez au moins une dépense."); return; }
+  const prefixCour = `${anneeCourante}-${String(moisCourant).padStart(2,"0")}`;
+  // Nombre de jours dans le mois courant
+  const joursDansMoisCour = new Date(anneeCourante, moisCourant, 0).getDate();
+  cases.forEach(cb => {
+    const idx = parseInt(cb.dataset.idx);
+    const t = _rappelsManquantes[idx];
+    // Extraire le jour de la date originale (mois précédent)
+    const jourOriginal = parseInt(t.date.slice(8, 10), 10);
+    // Ajuster si le mois courant a moins de jours
+    const jourAjuste = Math.min(jourOriginal, joursDansMoisCour);
+    const dateAjout = `${prefixCour}-${String(jourAjuste).padStart(2,"0")}`;
+    // Lire le montant modifié dans le champ input
+    const inputMontant = document.querySelector(`.rappel-montant-input[data-idx="${idx}"]`);
+    const montant = inputMontant ? (parseFloat(inputMontant.value) || t.montant) : t.montant;
+    transactions.push({
+      date: dateAjout,
+      description: t.description,
+      categorie: t.categorie,
+      type: "sortie",
+      montant: montant,
+      recurrence: t.recurrence,
+      note: t.note || "",
+      statut: "estimé"
+    });
+  });
+  sauvegarder();
+  document.getElementById("rappels-overlay").style.display = "none";
+  rafraichir();
+  verifierRappels();
+}
+
+function traiterRappelsSupprimer() {
+  const cases = document.querySelectorAll(".rappel-cb:checked");
+  if (cases.length === 0) { alert("Cochez au moins une dépense."); return; }
+  if (!confirm("Retirer la récurrence des dépenses cochées ? (elles ne seront plus rappelées)")) return;
+  cases.forEach(cb => {
+    const t = _rappelsManquantes[parseInt(cb.dataset.idx)];
+    // Trouver la transaction d'origine et retirer sa récurrence
+    const orig = transactions.find(tx =>
+      tx.description.toLowerCase() === t.description.toLowerCase() &&
+      tx.type === "sortie" && tx.recurrence && tx.recurrence !== "non"
+    );
+    if (orig) orig.recurrence = "non";
+  });
+  sauvegarder();
+  document.getElementById("rappels-overlay").style.display = "none";
+  rafraichir();
+  verifierRappels();
 }
 
 // ── Note dans ajout/édition ───────────────────────────────────────────────────

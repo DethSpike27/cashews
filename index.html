@@ -80,8 +80,8 @@
         <fieldset>
           <legend>Type</legend>
           <div class="radio-group">
-            <label><input type="radio" name="type" value="entrée" checked> Entrée</label>
-            <label><input type="radio" name="type" value="sortie"> Sortie</label>
+            <label><input type="radio" name="type" value="entrée"> Entrée</label>
+            <label><input type="radio" name="type" value="sortie" checked> Sortie</label>
           </div>
         </fieldset>
 
@@ -159,6 +159,30 @@
       </div>
     </section>
   </main>
+
+  <!-- MODAL RAPPELS RÉCURRENTS -->
+  <div id="rappels-overlay" class="modal-overlay" style="display:none" role="dialog" aria-modal="true" aria-labelledby="rappels-titre">
+    <div class="modal modal-large">
+      <div class="modal-analyse-header">
+        <h2 id="rappels-titre">🔔 Dépenses récurrentes non saisies</h2>
+        <button class="btn-close-analyse" id="btn-close-rappels" aria-label="Fermer les rappels">✕</button>
+      </div>
+      <div class="analyse-result">
+        <div class="rappels-top-bar">
+          <p class="rappels-intro">Cochez les dépenses à traiter pour ce mois-ci :</p>
+          <div class="rappels-check-btns">
+            <button class="btn-check-all" id="btn-rappels-cocher-tout">☑ Tout cocher</button>
+            <button class="btn-check-all" id="btn-rappels-decocher-tout">☐ Tout décocher</button>
+          </div>
+        </div>
+        <div id="rappels-liste"></div>
+        <div class="rappels-actions">
+          <button class="btn-save" id="btn-rappels-ajouter">✅ Ajouter les cochées</button>
+          <button class="btn-del-style" id="btn-rappels-supprimer">🗑 Payée au total (retirer récurrence)</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- MODAL ANALYSE -->
   <div id="analyse-overlay" class="modal-overlay" style="display:none" role="dialog" aria-modal="true" aria-labelledby="analyse-titre">
