@@ -318,7 +318,14 @@ function _creerLigne(t) {
       btnStatut.textContent = "✅";
     }
     btnStatut.addEventListener("click", () => {
-      transactions[idx].statut = estEstime ? "payé" : "estimé";
+      if (estEstime) {
+        // Marquer comme payé → mettre la date du jour
+        transactions[idx].statut = "payé";
+        transactions[idx].date   = new Date().toISOString().slice(0, 10);
+      } else {
+        // Marquer comme estimé → remettre en estimé
+        transactions[idx].statut = "estimé";
+      }
       sauvegarder();
       rafraichir();
     });
