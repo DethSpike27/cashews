@@ -1,3 +1,9 @@
+// ── Formatage des montants (FR: "12.50 $" / EN: "$12.50") ────────────────────
+function fmt(montant) {
+  const n = parseFloat(montant).toFixed(2);
+  return (typeof langue !== "undefined" && langue === "en") ? `$${n}` : `${n} $`;
+}
+
 // ── Données ──────────────────────────────────────────────────────────────────
 const MOIS_NOMS = ["Janvier","Février","Mars","Avril","Mai","Juin",
                    "Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
@@ -210,11 +216,11 @@ function rafraichir() {
   const sorties = duMois.filter(t=>t.type==="sortie").reduce((s,t)=>s+t.montant,0);
   const solde   = entrees - sorties;
 
-  document.getElementById("c-entrees").textContent = `+${entrees.toFixed(2)} $`;
-  document.getElementById("c-sorties").textContent = `-${sorties.toFixed(2)} $`;
+  document.getElementById("c-entrees").textContent = langue === "en" ? `+${fmt(entrees)}` : `+${fmt(entrees)}`;
+  document.getElementById("c-sorties").textContent = langue === "en" ? `-${fmt(sorties)}` : `-${fmt(sorties)}`;
 
   const cSolde = document.getElementById("c-solde");
-  cSolde.textContent = (solde>=0?"+":"")+solde.toFixed(2)+" $";
+  cSolde.textContent = (solde>=0?"+":"-") + fmt(Math.abs(solde));
   const cardSolde = cSolde.closest(".card");
   if (solde < 0) {
     cardSolde.style.background = "var(--red)";
@@ -222,10 +228,10 @@ function rafraichir() {
     cardSolde.style.background = "var(--green)";
   }
 
-  document.getElementById("r-entrees").textContent = `+${entrees.toFixed(2)} $`;
-  document.getElementById("r-sorties").textContent = `-${sorties.toFixed(2)} $`;
+  document.getElementById("r-entrees").textContent = `+${fmt(entrees)}`;
+  document.getElementById("r-sorties").textContent = `-${fmt(sorties)}`;
   const rSolde = document.getElementById("r-solde");
-  rSolde.textContent = (solde>=0?"+":"")+solde.toFixed(2)+" $";
+  rSolde.textContent = (solde>=0?"+":"-") + fmt(Math.abs(solde));
   rSolde.style.color = solde >= 0 ? "var(--green)" : "var(--red)";
 
   const bilan = document.getElementById("r-bilan");
@@ -233,10 +239,10 @@ function rafraichir() {
     bilan.textContent = "Aucune transaction";
     bilan.style.color = "var(--sub)";
   } else if (solde >= 0) {
-    bilan.textContent = `✅ Excédent de ${solde.toFixed(2)} $`;
+    bilan.textContent = langue === "en" ? `✅ Surplus of ${fmt(solde)}` : `✅ Excédent de ${fmt(solde)}`;
     bilan.style.color = "var(--green)";
   } else {
-    bilan.textContent = `⚠️ Déficit de ${Math.abs(solde).toFixed(2)} $`;
+    bilan.textContent = langue === "en" ? `⚠️ Deficit of ${fmt(Math.abs(solde))}` : `⚠️ Déficit de ${fmt(Math.abs(solde))}`;
     bilan.style.color = "var(--red)";
   }
 
@@ -246,17 +252,17 @@ function rafraichir() {
   const soldeAvecEpargne = solde + epargne;
 
   const rEpargne = document.getElementById("r-epargne");
-  rEpargne.textContent = epargne > 0 ? `-${epargne.toFixed(2)} $` : "0.00 $";
+  rEpargne.textContent = epargne > 0 ? `-${fmt(epargne)}` : fmt(0);
 
   const rBilanEpargne = document.getElementById("r-bilan-epargne");
   if (entrees===0 && sorties===0) {
     rBilanEpargne.textContent = "Aucune transaction";
     rBilanEpargne.style.color = "var(--sub)";
   } else if (soldeAvecEpargne >= 0) {
-    rBilanEpargne.textContent = `✅ Excédent de ${soldeAvecEpargne.toFixed(2)} $`;
+    rBilanEpargne.textContent = langue === "en" ? `✅ Surplus of ${fmt(soldeAvecEpargne)}` : `✅ Excédent de ${fmt(soldeAvecEpargne)}`;
     rBilanEpargne.style.color = "var(--green)";
   } else {
-    rBilanEpargne.textContent = `⚠️ Déficit de ${Math.abs(soldeAvecEpargne).toFixed(2)} $`;
+    rBilanEpargne.textContent = langue === "en" ? `⚠️ Deficit of ${fmt(Math.abs(soldeAvecEpargne))}` : `⚠️ Déficit de ${fmt(Math.abs(soldeAvecEpargne))}`;
     rBilanEpargne.style.color = "var(--red)";
   }
 
@@ -299,7 +305,7 @@ function _creerLigne(t) {
 
   const tdMontant = document.createElement("td");
   tdMontant.className = cls + (estEstime ? " montant-estime" : "");
-  tdMontant.textContent = `${signe}${parseFloat(t.montant).toFixed(2)} $`;
+  tdMontant.textContent = `${signe}${fmt(t.montant)}`;
 
   const tdActions = document.createElement("td");
 
@@ -654,13 +660,13 @@ function analyserDepenses() {
     html += `
       <div class="analyse-ligne">
         <span>🎮 Loisirs</span>
-        <span class="analyse-montant">${totalLoisirs.toFixed(2)} $</span>
+        <span class="analyse-montant">${fmt(totalLoisirs)}</span>
       </div>
       <div class="analyse-pct ${badge}">${pctLoisirs.toFixed(1)} % des entrées</div>`;
     if (loisirs.length > 0) {
       html += `<ul class="analyse-liste">`;
       loisirs.forEach(t => {
-        html += `<li><span>${t.description} ${_recBadge(t)}</span><span>${t.montant.toFixed(2)} $</span></li>`;
+        html += `<li><span>${t.description} ${_recBadge(t)}</span><span>${fmt(t.montant)}</span></li>`;
       });
       html += `</ul>`;
     }
@@ -671,13 +677,13 @@ function analyserDepenses() {
     html += `
       <div class="analyse-ligne">
         <span>📦 Autre</span>
-        <span class="analyse-montant">${totalAutre.toFixed(2)} $</span>
+        <span class="analyse-montant">${fmt(totalAutre)}</span>
       </div>
       <div class="analyse-pct ${badge}">${pctAutre.toFixed(1)} % des entrées</div>`;
     if (autre.length > 0) {
       html += `<ul class="analyse-liste">`;
       autre.forEach(t => {
-        html += `<li><span>${t.description} ${_recBadge(t)}</span><span>${t.montant.toFixed(2)} $</span></li>`;
+        html += `<li><span>${t.description} ${_recBadge(t)}</span><span>${fmt(t.montant)}</span></li>`;
       });
       html += `</ul>`;
     }
@@ -696,21 +702,21 @@ function analyserDepenses() {
     const totalCourant = totalLoisirs + totalAutre;
     html += `<tr class="compare-row-current">
       <td><strong>${MOIS_NOMS[moisCourant-1]}</strong></td>
-      <td>${totalLoisirs > 0 ? totalLoisirs.toFixed(2)+" $" : "—"}</td>
-      <td>${totalAutre > 0 ? totalAutre.toFixed(2)+" $" : "—"}</td>
-      <td><strong>${totalCourant.toFixed(2)} $</strong></td>
+      <td>${totalLoisirs > 0 ? fmt(totalLoisirs) : "—"}</td>
+      <td>${totalAutre > 0 ? fmt(totalAutre) : "—"}</td>
+      <td><strong>${fmt(totalCourant)}</strong></td>
     </tr>`;
 
     historique.forEach(h => {
       const totalH = h.loisirs + h.autre;
       const diff   = totalCourant - totalH;
-      const diffTxt = diff === 0 ? "" : (diff > 0 ? `<span class="cmp-hausse">▲ ${diff.toFixed(2)} $</span>` : `<span class="cmp-baisse">▼ ${Math.abs(diff).toFixed(2)} $</span>`);
+      const diffTxt = diff === 0 ? "" : (diff > 0 ? `<span class="cmp-hausse">▲ ${fmt(diff)}</span>` : `<span class="cmp-baisse">▼ ${fmt(Math.abs(diff))}</span>`);
       const label  = h.annee !== anneeCourante ? `${MOIS_NOMS[h.mois-1]} ${h.annee}` : MOIS_NOMS[h.mois-1];
       html += `<tr>
         <td>${label}</td>
-        <td>${h.loisirs > 0 ? h.loisirs.toFixed(2)+" $" : "—"}</td>
-        <td>${h.autre > 0 ? h.autre.toFixed(2)+" $" : "—"}</td>
-        <td>${totalH.toFixed(2)} $ ${diffTxt}</td>
+        <td>${h.loisirs > 0 ? fmt(h.loisirs) : "—"}</td>
+        <td>${h.autre > 0 ? fmt(h.autre) : "—"}</td>
+        <td>${fmt(totalH)} ${diffTxt}</td>
       </tr>`;
     });
 
@@ -743,7 +749,7 @@ function analyserDepenses() {
   if (totalLoisirs > 0) {
     if (pctLoisirs > 15) {
       html += `<li>⚠️ Vos <strong>Loisirs</strong> représentent <strong>${pctLoisirs.toFixed(1)} %</strong> de vos entrées — c'est élevé. Essayez de viser moins de 10 %.</li>`;
-      html += `<li>🎯 Fixez-vous un budget mensuel Loisirs de <strong>${(totalEntrees * 0.10).toFixed(2)} $</strong> (10 % de vos entrées).</li>`;
+      html += `<li>🎯 Fixez-vous un budget mensuel Loisirs de <strong>${fmt(totalEntrees * 0.10)}</strong> (10 % de vos entrées).</li>`;
       html += `<li>📅 Planifiez vos sorties à l'avance pour éviter les dépenses impulsives.</li>`;
     } else if (pctLoisirs > 8) {
       html += `<li>🟡 Vos <strong>Loisirs</strong> (${pctLoisirs.toFixed(1)} %) sont dans la moyenne — quelques ajustements pourraient aider.</li>`;
@@ -753,7 +759,7 @@ function analyserDepenses() {
     }
     if (loisirs.length >= 3) {
       const maxLoisir = loisirs.reduce((a, b) => a.montant > b.montant ? a : b);
-      html += `<li>💸 Votre plus grosse dépense Loisirs : <strong>${maxLoisir.description}</strong> (${maxLoisir.montant.toFixed(2)} $). Peut-elle être réduite ?</li>`;
+      html += `<li>💸 Votre plus grosse dépense Loisirs : <strong>${maxLoisir.description}</strong> (${fmt(maxLoisir.montant)}). Peut-elle être réduite ?</li>`;
     }
     html += `<li>📱 Vérifiez vos abonnements (streaming, jeux…) et annulez ceux que vous utilisez peu.</li>`;
   }
@@ -770,7 +776,7 @@ function analyserDepenses() {
     }
     if (autre.length >= 2) {
       const maxAutre = autre.reduce((a, b) => a.montant > b.montant ? a : b);
-      html += `<li>💸 Plus grosse dépense « Autre » : <strong>${maxAutre.description}</strong> (${maxAutre.montant.toFixed(2)} $). Est-elle vraiment nécessaire ?</li>`;
+      html += `<li>💸 Plus grosse dépense « Autre » : <strong>${maxAutre.description}</strong> (${fmt(maxAutre.montant)}). Est-elle vraiment nécessaire ?</li>`;
     }
     html += `<li>📝 Avant chaque achat « Autre », demandez-vous : est-ce un besoin ou une envie ?</li>`;
   }
@@ -786,7 +792,7 @@ function analyserDepenses() {
 
   if (totalRec > 0) {
     const pctRec = totalEntrees > 0 ? (totalRec / totalEntrees * 100) : 0;
-    html += `<li>🔁 Vous avez <strong>${totalRec.toFixed(2)} $</strong> de dépenses récurrentes en Loisirs & Autre`;
+    html += `<li>🔁 Vous avez <strong>${fmt(totalRec)}</strong> de dépenses récurrentes en Loisirs & Autre`;
     if (recurrentes1x.length > 0 && recurrentes2x.length > 0) {
       html += ` (${recurrentes1x.length} à 1×/mois, ${recurrentes2x.length} à 2×/mois)`;
     } else if (recurrentes1x.length > 0) {
@@ -801,7 +807,7 @@ function analyserDepenses() {
       html += `<li>✅ Vos dépenses récurrentes sont sous contrôle. Continuez à les surveiller chaque mois.</li>`;
     }
     if (totalPonctuel > 0) {
-      html += `<li>📌 Vos dépenses ponctuelles s'élèvent à <strong>${totalPonctuel.toFixed(2)} $</strong> — ce sont les plus faciles à réduire rapidement.</li>`;
+      html += `<li>📌 Vos dépenses ponctuelles s'élèvent à <strong>${fmt(totalPonctuel)}</strong> — ce sont les plus faciles à réduire rapidement.</li>`;
     }
   }
 
@@ -809,7 +815,7 @@ function analyserDepenses() {
   const totalFlexible = totalLoisirs + totalAutre;
   if (totalFlexible > 0 && totalEntrees > 0) {
     const economie = totalFlexible * 0.20;
-    html += `<li>💰 En réduisant vos dépenses Loisirs & Autre de 20 %, vous pourriez économiser <strong>${economie.toFixed(2)} $</strong> ce mois-ci.</li>`;
+    html += `<li>💰 En réduisant vos dépenses Loisirs & Autre de 20 %, vous pourriez économiser <strong>${fmt(economie)}</strong> ce mois-ci.</li>`;
   }
 
   html += `</ul></div>`;
@@ -1003,7 +1009,7 @@ function afficherBudgets(duMois) {
     return `<div class="budget-item">
       <div class="budget-item-header">
         <span class="budget-cat">${cat}</span>
-        <span class="budget-amounts">${depense.toFixed(2)} $ / ${budget.toFixed(2)} $</span>
+        <span class="budget-amounts">${fmt(depense)} / ${fmt(budget)}</span>
       </div>
       <div class="budget-bar-bg"><div class="budget-bar-fill ${cls}" style="width:${pct}%"></div></div>
     </div>`;
@@ -1090,17 +1096,17 @@ function ouvrirVueAnnuelle() {
     const solCls = sol>=0?"col-solde-pos":"col-solde-neg";
     html += `<tr${isCur?' class="mois-courant"':''}>
       <td>${MOIS_NOMS[m-1]}</td>
-      <td class="col-entree">${e>0?"+"+e.toFixed(2)+" $":"—"}</td>
-      <td class="col-sortie">${s>0?"-"+s.toFixed(2)+" $":"—"}</td>
-      <td class="${solCls}">${(sol>=0?"+":"")+sol.toFixed(2)} $</td>
+      <td class="col-entree">${e>0?`+${fmt(e)}`:"—"}</td>
+      <td class="col-sortie">${s>0?`-${fmt(s)}`:"—"}</td>
+      <td class="${solCls}">${(sol>=0?"+":"-")+fmt(Math.abs(sol))}</td>
     </tr>`;
   }
   const totSol = totE-totS;
   html += `</tbody><tfoot><tr class="annuelle-total">
     <td><strong>Total ${anneeCourante}</strong></td>
-    <td class="col-entree">+${totE.toFixed(2)} $</td>
-    <td class="col-sortie">-${totS.toFixed(2)} $</td>
-    <td class="${totSol>=0?"col-solde-pos":"col-solde-neg"}">${(totSol>=0?"+":"")+totSol.toFixed(2)} $</td>
+    <td class="col-entree">+${fmt(totE)}</td>
+    <td class="col-sortie">-${fmt(totS)}</td>
+    <td class="${totSol>=0?"col-solde-pos":"col-solde-neg"}">${(totSol>=0?"+":"-")+fmt(Math.abs(totSol))}</td>
   </tr></tfoot></table>`;
   document.getElementById("annuelle-result").innerHTML = html;
   document.getElementById("annuelle-overlay").style.display = "flex";
@@ -1131,6 +1137,6 @@ function ouvrirGraphique() {
 
   const total = data.reduce((s,v)=>s+v,0);
   document.getElementById("graphique-legende").innerHTML = labels.map((l,i)=>
-    `<div class="legende-item"><div class="legende-dot" style="background:${CHART_COLORS[i%CHART_COLORS.length]}"></div>${l} — ${data[i].toFixed(2)} $ (${(data[i]/total*100).toFixed(1)} %)</div>`
+    `<div class="legende-item"><div class="legende-dot" style="background:${CHART_COLORS[i%CHART_COLORS.length]}"></div>${l} — ${fmt(data[i])} (${(data[i]/total*100).toFixed(1)} %)</div>`
   ).join("");
 }
