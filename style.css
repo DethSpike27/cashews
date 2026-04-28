@@ -117,10 +117,19 @@ aside form input[type=text],
 aside form input[type=number],
 aside form input[type=date],
 aside form select {
+  box-sizing: border-box;
   background: var(--entry); color: var(--text);
   border: 1px solid var(--border); border-radius: 5px;
-  padding: 7px 10px; font-size: .88rem; outline: none; width: 100%;
+  padding: 7px 10px;
+  height: 36px;
+  line-height: 1.2;
+  font-size: .88rem;
+  font-family: inherit;
+  outline: none;
+  width: 100%;
   transition: border-color .2s;
+  -webkit-appearance: none;
+  appearance: none;
 }
 aside label input:focus,
 aside label select:focus,
@@ -1014,3 +1023,216 @@ body.dark .rappel-cat { background: #1e3a5f; color: #93c5fd; }
 body.dark .badge-estime { background: #451a03; color: #fcd34d; border-color: #92400e; }
 body.dark .btn-del-style { border-color: #f87171; color: #f87171; }
 body.dark .btn-del-style:hover { background: #f87171; color: #fff; }
+
+/* ═══════════════════════════════════════════════════════════
+   DATEPICKER CUSTOM
+   ═══════════════════════════════════════════════════════════ */
+
+/* Conteneur relatif pour positionner le popup */
+.datepicker-wrap {
+  position: relative;
+  width: 100%;
+}
+
+/* Champ texte qui affiche la date sélectionnée */
+/* Spécificité élevée pour surpasser aside form input[type=text] */
+input.datepicker-input,
+aside form input.datepicker-input,
+.modal input.datepicker-input {
+  box-sizing: border-box !important;
+  background-color: var(--entry) !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%231c2533' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='18' rx='2' ry='2'%3E%3C/rect%3E%3Cline x1='16' y1='2' x2='16' y2='6'%3E%3C/line%3E%3Cline x1='8' y1='2' x2='8' y2='6'%3E%3C/line%3E%3Cline x1='3' y1='10' x2='21' y2='10'%3E%3C/line%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 10px center !important;
+  background-size: 16px 16px !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 5px !important;
+  /* Même padding, hauteur, police que Description et Montant */
+  padding: 7px 36px 7px 10px !important;
+  height: 36px !important;
+  line-height: 1.2 !important;
+  font-size: .88rem !important;
+  font-family: inherit !important;
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  outline: none !important;
+  width: 100% !important;
+  cursor: pointer !important;
+  transition: border-color .2s, box-shadow .2s !important;
+}
+.datepicker-input:focus,
+.datepicker-input.open {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(30,58,95,.15);
+}
+
+/* Popup calendrier */
+.datepicker-popup {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 500;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 8px 28px rgba(0,0,0,.18);
+  padding: 12px;
+  min-width: 260px;
+  user-select: none;
+}
+
+/* En-tête du calendrier : navigation mois/année */
+.dp-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  gap: 4px;
+}
+.dp-nav-btn {
+  background: var(--entry);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 5px;
+  width: 28px; height: 28px;
+  font-size: .85rem;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .15s, border-color .15s;
+  flex-shrink: 0;
+}
+.dp-nav-btn:hover {
+  background: var(--border);
+  border-color: var(--accent);
+}
+.dp-month-year {
+  font-size: .88rem;
+  font-weight: 700;
+  color: var(--text);
+  text-align: center;
+  flex: 1;
+  cursor: pointer;
+  padding: 3px 6px;
+  border-radius: 5px;
+  transition: background .15s;
+}
+.dp-month-year:hover { background: var(--entry); }
+
+/* Grille des jours de la semaine */
+.dp-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  margin-bottom: 4px;
+}
+.dp-weekday {
+  text-align: center;
+  font-size: .7rem;
+  font-weight: 700;
+  color: var(--sub);
+  text-transform: uppercase;
+  padding: 3px 0;
+}
+
+/* Grille des jours du mois */
+.dp-days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+.dp-day {
+  text-align: center;
+  font-size: .82rem;
+  padding: 5px 2px;
+  border-radius: 5px;
+  cursor: pointer;
+  color: var(--text);
+  transition: background .12s, color .12s;
+  border: 1px solid transparent;
+}
+.dp-day:hover {
+  background: var(--entry);
+  border-color: var(--border);
+}
+/* Jour vide (padding début de mois) */
+.dp-day.empty {
+  cursor: default;
+  pointer-events: none;
+}
+/* Aujourd'hui */
+.dp-day.today {
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 700;
+}
+/* Jour sélectionné */
+.dp-day.selected {
+  background: var(--accent);
+  color: #fff;
+  font-weight: 700;
+  border-color: var(--accent);
+}
+.dp-day.selected:hover {
+  background: var(--accent2);
+  border-color: var(--accent2);
+}
+/* Jours hors du mois courant (mois précédent/suivant) */
+.dp-day.other-month {
+  color: var(--sub);
+  opacity: .5;
+}
+
+/* Bouton "Aujourd'hui" en bas du popup */
+.dp-footer {
+  margin-top: 8px;
+  text-align: center;
+}
+.dp-today-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--accent);
+  font-size: .78rem;
+  font-weight: 600;
+  padding: 4px 14px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
+}
+.dp-today-btn:hover {
+  background: var(--entry);
+  border-color: var(--accent);
+}
+
+/* === MODE SOMBRE — datepicker === */
+body.dark input.datepicker-input,
+body.dark aside form input.datepicker-input,
+body.dark .modal input.datepicker-input {
+  background-color: var(--entry) !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='18' rx='2' ry='2'%3E%3C/rect%3E%3Cline x1='16' y1='2' x2='16' y2='6'%3E%3C/line%3E%3Cline x1='8' y1='2' x2='8' y2='6'%3E%3C/line%3E%3Cline x1='3' y1='10' x2='21' y2='10'%3E%3C/line%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 10px center !important;
+  background-size: 16px 16px !important;
+}
+body.dark .datepicker-popup {
+  box-shadow: 0 8px 28px rgba(0,0,0,.45);
+}
+body.dark .dp-day.today {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+body.dark .dp-day.selected {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* === RESPONSIVE — datepicker sur mobile === */
+@media (max-width: 700px) {
+  .datepicker-popup {
+    min-width: 240px;
+    padding: 10px;
+  }
+  .dp-day {
+    padding: 6px 2px;
+    font-size: .8rem;
+  }
+}

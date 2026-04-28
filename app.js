@@ -1,3 +1,209 @@
+// ══════════════════════════════════════════════════════════════════════════════
+// DATEPICKER CUSTOM — sélecteur de date universel (sans dépendance)
+// ══════════════════════════════════════════════════════════════════════════════
+
+class DatePicker {
+  /**
+   * @param {string} inputId   — id de l'<input type="text"> affiché
+   * @param {string} popupId   — id du <div class="datepicker-popup">
+   */
+  constructor(inputId, popupId) {
+    this.input  = document.getElementById(inputId);
+    this.popup  = document.getElementById(popupId);
+    if (!this.input || !this.popup) return;
+
+    // État interne
+    const today    = new Date();
+    this.today     = { y: today.getFullYear(), m: today.getMonth(), d: today.getDate() };
+    this.viewYear  = this.today.y;
+    this.viewMonth = this.today.m;   // 0-based
+    this.selected  = null;           // { y, m, d } ou null
+
+    // Noms des mois selon la langue courante
+    this._bindEvents();
+  }
+
+  // ── Noms localisés ──────────────────────────────────────────────────────────
+  _monthNames() {
+    const lang = (typeof langue !== "undefined") ? langue : "fr";
+    return lang === "en"
+      ? ["January","February","March","April","May","June",
+         "July","August","September","October","November","December"]
+      : ["Janvier","Février","Mars","Avril","Mai","Juin",
+         "Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
+  }
+  _dayNames() {
+    const lang = (typeof langue !== "undefined") ? langue : "fr";
+    return lang === "en"
+      ? ["Su","Mo","Tu","We","Th","Fr","Sa"]
+      : ["Di","Lu","Ma","Me","Je","Ve","Sa"];
+  }
+  _todayLabel() {
+    return (typeof langue !== "undefined" && langue === "en") ? "Today" : "Aujourd'hui";
+  }
+
+  // ── Valeur publique (format YYYY-MM-DD) ────────────────────────────────────
+  getValue() {
+    return this.input.value; // déjà au format YYYY-MM-DD
+  }
+
+  setValue(dateStr) {
+    // dateStr : "YYYY-MM-DD"
+    if (!dateStr) { this.selected = null; this.input.value = ""; return; }
+    const parts = dateStr.split("-");
+    if (parts.length !== 3) return;
+    const y = parseInt(parts[0], 10);
+    const m = parseInt(parts[1], 10) - 1; // 0-based
+    const d = parseInt(parts[2], 10);
+    this.selected  = { y, m, d };
+    this.viewYear  = y;
+    this.viewMonth = m;
+    this.input.value = dateStr;
+  }
+
+  // ── Rendu du popup ──────────────────────────────────────────────────────────
+  _render() {
+    const months   = this._monthNames();
+    const days     = this._dayNames();
+    const y        = this.viewYear;
+    const m        = this.viewMonth;
+
+    // Premier jour du mois (0=Di, 1=Lu, …)
+    const firstDay  = new Date(y, m, 1).getDay();
+    const daysInMonth = new Date(y, m + 1, 0).getDate();
+
+    // Jours du mois précédent pour remplir la première ligne
+    const prevDays = new Date(y, m, 0).getDate();
+
+    let html = `
+      <div class="dp-header">
+        <button class="dp-nav-btn" data-dp-action="prev-month" aria-label="Mois précédent">◀</button>
+        <span class="dp-month-year">${months[m]} ${y}</span>
+        <button class="dp-nav-btn" data-dp-action="next-month" aria-label="Mois suivant">▶</button>
+      </div>
+      <div class="dp-weekdays">
+        ${days.map(d => `<div class="dp-weekday">${d}</div>`).join("")}
+      </div>
+      <div class="dp-days">`;
+
+    // Cases vides avant le 1er du mois (jours du mois précédent)
+    for (let i = 0; i < firstDay; i++) {
+      const day = prevDays - firstDay + 1 + i;
+      html += `<div class="dp-day other-month empty">${day}</div>`;
+    }
+
+    // Jours du mois courant
+    for (let d = 1; d <= daysInMonth; d++) {
+      let cls = "dp-day";
+      if (d === this.today.d && m === this.today.m && y === this.today.y) cls += " today";
+      if (this.selected && d === this.selected.d && m === this.selected.m && y === this.selected.y) cls += " selected";
+      html += `<div class="${cls}" data-dp-day="${d}">${d}</div>`;
+    }
+
+    // Cases vides après le dernier jour (jours du mois suivant)
+    const totalCells = firstDay + daysInMonth;
+    const remaining  = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
+    for (let i = 1; i <= remaining; i++) {
+      html += `<div class="dp-day other-month empty">${i}</div>`;
+    }
+
+    html += `</div>
+      <div class="dp-footer">
+        <button class="dp-today-btn" data-dp-action="today">${this._todayLabel()}</button>
+      </div>`;
+
+    this.popup.innerHTML = html;
+  }
+
+  // ── Ouvrir / fermer ─────────────────────────────────────────────────────────
+  open() {
+    this._render();
+    this.popup.style.display = "block";
+    this.input.classList.add("open");
+    this.input.setAttribute("aria-expanded", "true");
+    // Ajuster position si le popup dépasse en bas de l'écran
+    requestAnimationFrame(() => {
+      const rect = this.popup.getBoundingClientRect();
+      if (rect.bottom > window.innerHeight - 8) {
+        this.popup.style.top = "auto";
+        this.popup.style.bottom = "calc(100% + 6px)";
+      } else {
+        this.popup.style.top = "";
+        this.popup.style.bottom = "";
+      }
+    });
+  }
+
+  close() {
+    this.popup.style.display = "none";
+    this.input.classList.remove("open");
+    this.input.setAttribute("aria-expanded", "false");
+  }
+
+  toggle() {
+    this.popup.style.display === "none" ? this.open() : this.close();
+  }
+
+  // ── Événements ──────────────────────────────────────────────────────────────
+  _bindEvents() {
+    // Ouvrir/fermer au clic sur l'input
+    this.input.addEventListener("click", (e) => {
+      e.stopPropagation();
+      this.toggle();
+    });
+
+    // Délégation d'événements dans le popup
+    this.popup.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const action = e.target.dataset.dpAction;
+      const day    = e.target.dataset.dpDay;
+
+      if (action === "prev-month") {
+        if (this.viewMonth === 0) { this.viewMonth = 11; this.viewYear--; }
+        else this.viewMonth--;
+        this._render();
+      } else if (action === "next-month") {
+        if (this.viewMonth === 11) { this.viewMonth = 0; this.viewYear++; }
+        else this.viewMonth++;
+        this._render();
+      } else if (action === "today") {
+        const t = this.today;
+        this.selected  = { ...t };
+        this.viewYear  = t.y;
+        this.viewMonth = t.m;
+        const str = `${t.y}-${String(t.m + 1).padStart(2,"0")}-${String(t.d).padStart(2,"0")}`;
+        this.input.value = str;
+        this.close();
+        this.input.dispatchEvent(new Event("change", { bubbles: true }));
+      } else if (day) {
+        const d   = parseInt(day, 10);
+        const str = `${this.viewYear}-${String(this.viewMonth + 1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+        this.selected = { y: this.viewYear, m: this.viewMonth, d };
+        this.input.value = str;
+        this.close();
+        this.input.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+    });
+
+    // Fermer si clic en dehors
+    document.addEventListener("click", (e) => {
+      if (!this.popup.contains(e.target) && e.target !== this.input) {
+        this.close();
+      }
+    });
+
+    // Navigation clavier sur l'input
+    this.input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); this.toggle(); }
+      if (e.key === "Escape") this.close();
+    });
+  }
+}
+
+// Instances globales des deux datepickers
+let dpForm  = null; // formulaire principal (#f-date)
+let dpModal = null; // modal édition (#m-date)
+
 // ── Formatage des montants (FR: "12.50 $" / EN: "$12.50") ────────────────────
 function fmt(montant) {
   const n = parseFloat(montant).toFixed(2);
@@ -35,7 +241,11 @@ function toutesCategories() {
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 document.addEventListener("DOMContentLoaded", () => {
-  document.getElementById("f-date").value = new Date().toISOString().slice(0,10);
+  // ── Initialisation des datepickers custom ──────────────────────────────────
+  dpForm  = new DatePicker("f-date",  "f-date-popup");
+  dpModal = new DatePicker("m-date",  "m-date-popup");
+  // Pré-remplir la date du formulaire avec aujourd'hui
+  dpForm.setValue(new Date().toISOString().slice(0, 10));
 
   // Navigation mois / année
   document.getElementById("btn-prev").addEventListener("click", moisPrecedent);
@@ -413,7 +623,7 @@ function fermerRecurrence(event) {
 function _resetFormulaire() {
   document.getElementById("f-desc").value    = "";
   document.getElementById("f-montant").value = "";
-  document.getElementById("f-date").value    = new Date().toISOString().slice(0,10);
+  if (dpForm) dpForm.setValue(new Date().toISOString().slice(0, 10));
   const fNote = document.getElementById("f-note");
   if (fNote) fNote.value = "";
   cacherSuggestions();
@@ -496,7 +706,7 @@ function ouvrirModal(idx) {
   const t = transactions[idx];
   document.getElementById("m-desc").value    = t.description;
   document.getElementById("m-montant").value = t.montant;
-  document.getElementById("m-date").value    = t.date;
+  if (dpModal) dpModal.setValue(t.date); else document.getElementById("m-date").value = t.date;
   document.getElementById("m-cat").value     = t.categorie;
   const mNote = document.getElementById("m-note");
   if (mNote) mNote.value = t.note || "";
