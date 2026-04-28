@@ -121,17 +121,9 @@ class DatePicker {
     this.popup.style.display = "block";
     this.input.classList.add("open");
     this.input.setAttribute("aria-expanded", "true");
-    // Ajuster position si le popup dépasse en bas de l'écran
-    requestAnimationFrame(() => {
-      const rect = this.popup.getBoundingClientRect();
-      if (rect.bottom > window.innerHeight - 8) {
-        this.popup.style.top = "auto";
-        this.popup.style.bottom = "calc(100% + 6px)";
-      } else {
-        this.popup.style.top = "";
-        this.popup.style.bottom = "";
-      }
-    });
+    // Le popup s'ouvre toujours en dessous de l'input (jamais au-dessus)
+    this.popup.style.top = "";
+    this.popup.style.bottom = "";
   }
 
   close() {
