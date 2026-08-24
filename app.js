@@ -213,17 +213,39 @@ let budgets       = JSON.parse(localStorage.getItem("cashewdollar_budgets") || "
 let categoriesPerso = JSON.parse(localStorage.getItem("cashewdollar_cats") || "null");
 if (!categoriesPerso) categoriesPerso = [...CATEGORIES_DEFAULT];
 
+// ── Firebase sync ─────────────────────────────────────────────────────────────
+let fbCurrentUser = null;
+let fbUserRef     = null;
+let isFbSyncing   = false;
+
+window.saveToFirebase = function() {
+  if (!fbCurrentUser || !fbUserRef) return;
+  isFbSyncing = true;
+  fbUserRef.set({
+    transactions: transactions,
+    budgets:      budgets,
+    categories:   categoriesPerso,
+    theme:        localStorage.getItem("cashewdollar_theme")  || "light",
+    langue:       localStorage.getItem("cashewdollar_langue") || "fr"
+  })
+  .then(()  => { isFbSyncing = false; })
+  .catch(err => { isFbSyncing = false; console.error("Firebase save error:", err); });
+};
+
 let moisCourant   = new Date().getMonth() + 1;
 let anneeCourante = new Date().getFullYear();
 
 function sauvegarder() {
   localStorage.setItem("cashewdollar_tx", JSON.stringify(transactions));
+  window.saveToFirebase();
 }
 function sauvegarderBudgets() {
   localStorage.setItem("cashewdollar_budgets", JSON.stringify(budgets));
+  window.saveToFirebase();
 }
 function sauvegarderCategories() {
   localStorage.setItem("cashewdollar_cats", JSON.stringify(categoriesPerso));
+  window.saveToFirebase();
 }
 
 // Toutes les catégories (défaut + perso)
@@ -363,6 +385,85 @@ document.addEventListener("DOMContentLoaded", () => {
   rafraichir();
   verifierRappels();
   initAutocomplete();
+
+  // ── Firebase Auth ──────────────────────────────────────────────────────────
+  const authBtn = document.getElementById("auth-btn");
+
+  function updateAuthUI(user) {
+    if (user) {
+      const firstName = (user.displayName || "").split(" ")[0];
+      authBtn.innerHTML = user.photoURL
+        ? `<img src="${user.photoURL}" class="auth-avatar"> ${firstName}`
+        : `👤 ${firstName}`;
+      authBtn.title = user.email;
+      authBtn.onclick = () => {
+        if (confirm(langue === "fr" ? "Se déconnecter ?" : "Sign out?")) firebase.auth().signOut();
+      };
+    } else {
+      authBtn.textContent = "🔑";
+      authBtn.title = langue === "fr" ? "Se connecter avec Google" : "Sign in with Google";
+      authBtn.onclick = () => {
+        firebase.auth().signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(err => {
+          if (err.code !== "auth/popup-closed-by-user") alert("Erreur: " + err.message);
+        });
+      };
+    }
+  }
+
+  firebase.auth().onAuthStateChanged(user => {
+    fbCurrentUser = user;
+    updateAuthUI(user);
+
+    if (!user) {
+      if (fbUserRef) { fbUserRef.off(); fbUserRef = null; }
+      return;
+    }
+
+    fbUserRef = firebase.database().ref(`users/${user.uid}`);
+    isFbSyncing = false;
+
+    fbUserRef.on("value", snapshot => {
+      if (isFbSyncing) return;
+
+      const data = snapshot.val();
+      if (data && data.transactions !== undefined) {
+        transactions.length = 0;
+        (data.transactions || []).forEach(t => transactions.push(t));
+        localStorage.setItem("cashewdollar_tx", JSON.stringify(transactions));
+
+        if (data.budgets) {
+          Object.keys(budgets).forEach(k => delete budgets[k]);
+          Object.assign(budgets, data.budgets);
+          localStorage.setItem("cashewdollar_budgets", JSON.stringify(budgets));
+        }
+
+        if (data.categories) {
+          categoriesPerso.length = 0;
+          data.categories.forEach(c => categoriesPerso.push(c));
+          localStorage.setItem("cashewdollar_cats", JSON.stringify(categoriesPerso));
+          peuplerSelectsCategories();
+        }
+
+        if (data.theme) {
+          const isDark = data.theme === "dark";
+          localStorage.setItem("cashewdollar_theme", data.theme);
+          document.body.classList.toggle("dark", isDark);
+          document.getElementById("btn-theme").textContent = isDark ? "☀️" : "🌙";
+        }
+
+        if (data.langue && data.langue !== langue) {
+          isFbSyncing = true;
+          setLangue(data.langue);
+          isFbSyncing = false;
+        }
+
+        rafraichir();
+        verifierRappels();
+      } else {
+        window.saveToFirebase();
+      }
+    }, err => { console.error("Firebase listener error:", err); });
+  });
 });
 
 // ── Navigation mois ───────────────────────────────────────────────────────────
@@ -1081,6 +1182,7 @@ function toggleTheme() {
   const dark = document.body.classList.toggle("dark");
   document.getElementById("btn-theme").textContent = dark ? "☀️" : "🌙";
   localStorage.setItem("cashewdollar_theme", dark ? "dark" : "light");
+  window.saveToFirebase();
 }
 
 // ── Rappels récurrents ────────────────────────────────────────────────────────

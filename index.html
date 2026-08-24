@@ -9,6 +9,21 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+  <script>
+    firebase.initializeApp({
+      apiKey: "AIzaSyDox_ubeadrNre6SxrV01puAbclH4tUORY",
+      authDomain: "nwt-bible-tracker.firebaseapp.com",
+      databaseURL: "https://nwt-bible-tracker-default-rtdb.firebaseio.com",
+      projectId: "nwt-bible-tracker",
+      storageBucket: "nwt-bible-tracker.firebasestorage.app",
+      messagingSenderId: "75223619206",
+      appId: "1:75223619206:web:31dc33ee7de61f6b04e307"
+    });
+  </script>
   <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <link rel="stylesheet" href="style.css">
@@ -60,6 +75,7 @@
       <a id="btn-langue-en" href="#" class="langue-lien" aria-label="English">EN</a>
     </span>
     <button id="btn-theme" aria-label="Basculer le thème sombre/clair" title="Mode sombre/clair">🌙</button>
+    <button id="auth-btn" class="auth-btn" title="Se connecter avec Google">🔑</button>
   </header>
 
   <!-- BANNIÈRE RAPPELS RÉCURRENTS -->

@@ -745,6 +745,20 @@ body.dark .export-menu li button:hover { background: var(--entry); }
 }
 #btn-theme:hover { background: rgba(255,255,255,.28); }
 
+/* Bouton connexion Firebase */
+.auth-btn {
+  background: rgba(255,255,255,.15); color: #fff;
+  border: 1px solid rgba(255,255,255,.25);
+  padding: 4px 10px; border-radius: 5px; cursor: pointer;
+  font-size: .82rem; font-weight: 600;
+  display: flex; align-items: center; gap: 5px;
+  transition: background .2s; flex-shrink: 0; white-space: nowrap;
+}
+.auth-btn:hover { background: rgba(255,255,255,.28); }
+.auth-avatar {
+  width: 20px; height: 20px; border-radius: 50%; vertical-align: middle;
+}
+
 /* === SÉLECTEUR DE LANGUE FR / EN === */
 .langue-switcher { display: flex; align-items: center; gap: 2px; }
 .langue-lien {

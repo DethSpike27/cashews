@@ -8,6 +8,7 @@ function t(key) {
 function setLangue(lang) {
   langue = lang;
   localStorage.setItem("cashewdollar_langue", langue);
+  if (typeof window.saveToFirebase === "function") window.saveToFirebase();
   appliquerTraduction();
   majNavLabel();
   peuplerSelectsCategories();
