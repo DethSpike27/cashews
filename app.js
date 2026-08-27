@@ -216,11 +216,11 @@ if (!categoriesPerso) categoriesPerso = [...CATEGORIES_DEFAULT];
 // ── Firebase sync ─────────────────────────────────────────────────────────────
 let fbCurrentUser = null;
 let fbUserRef     = null;
-let isFbSyncing   = false;
+let fbSyncingCount = 0;
 
 window.saveToFirebase = function() {
   if (!fbCurrentUser || !fbUserRef) return;
-  isFbSyncing = true;
+  fbSyncingCount++;
   fbUserRef.set({
     transactions: transactions,
     budgets:      budgets,
@@ -228,8 +228,8 @@ window.saveToFirebase = function() {
     theme:        localStorage.getItem("cashewdollar_theme")  || "light",
     langue:       localStorage.getItem("cashewdollar_langue") || "fr"
   })
-  .then(()  => { isFbSyncing = false; })
-  .catch(err => { isFbSyncing = false; console.error("Firebase save error:", err); });
+  .then(()  => { fbSyncingCount--; })
+  .catch(err => { fbSyncingCount--; console.error("Firebase save error:", err); });
 };
 
 let moisCourant   = new Date().getMonth() + 1;
@@ -420,10 +420,10 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     fbUserRef = firebase.database().ref(`users/${user.uid}`);
-    isFbSyncing = false;
+    fbSyncingCount = 0;
 
     fbUserRef.on("value", snapshot => {
-      if (isFbSyncing) return;
+      if (fbSyncingCount > 0) return;
 
       const data = snapshot.val();
       if (data && data.transactions !== undefined) {
@@ -452,9 +452,9 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         if (data.langue && data.langue !== langue) {
-          isFbSyncing = true;
+          fbSyncingCount++;
           setLangue(data.langue);
-          isFbSyncing = false;
+          fbSyncingCount--;
         }
 
         rafraichir();
@@ -628,14 +628,18 @@ function _creerLigne(t) {
     }
     btnStatut.addEventListener("click", () => {
       if (estEstime) {
-        // Marquer comme payé → mettre la date du jour
         transactions[idx].statut = "payé";
         transactions[idx].date   = new Date().toISOString().slice(0, 10);
       } else {
-        // Marquer comme estimé → remettre en estimé
         transactions[idx].statut = "estimé";
       }
-      sauvegarder();
+      localStorage.setItem("cashewdollar_tx", JSON.stringify(transactions));
+      if (fbCurrentUser && fbUserRef) {
+        fbSyncingCount++;
+        fbUserRef.child(`transactions/${idx}`).set(transactions[idx])
+          .then(() => { fbSyncingCount--; })
+          .catch(() => { fbSyncingCount--; });
+      }
       rafraichir();
     });
     tdActions.appendChild(btnStatut);
