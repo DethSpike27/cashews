@@ -426,23 +426,42 @@ document.addEventListener("DOMContentLoaded", () => {
       if (fbSyncingCount > 0) return;
 
       const data = snapshot.val();
-      if (data && data.transactions !== undefined) {
+      const localTx      = [...transactions];
+      const localBudgets = Object.assign({}, budgets);
+      const localCats    = [...categoriesPerso];
+      const hasRemote = !!(data && data.transactions !== undefined);
+      const hasLocal  = !!(localTx.length || Object.keys(localBudgets).length);
+
+      if (!hasRemote && !hasLocal) return;
+
+      let needsPush = false;
+
+      if (hasRemote) {
+        // Merge transactions: union by composite key — never lose a transaction
+        const txKey = t => `${t.date}|${t.description}|${t.montant}|${t.type}`;
+        const remoteKeys = new Set((data.transactions || []).map(txKey));
+        const localExtra = localTx.filter(t => !remoteKeys.has(txKey(t)));
+        if (localExtra.length > 0) needsPush = true;
         transactions.length = 0;
-        (data.transactions || []).forEach(t => transactions.push(t));
+        [...(data.transactions || []), ...localExtra].forEach(t => transactions.push(t));
         localStorage.setItem("cashewdollar_tx", JSON.stringify(transactions));
 
-        if (data.budgets) {
-          Object.keys(budgets).forEach(k => delete budgets[k]);
-          Object.assign(budgets, data.budgets);
-          localStorage.setItem("cashewdollar_budgets", JSON.stringify(budgets));
-        }
+        // Merge budgets: remote base + local overrides (preserves offline changes)
+        const remoteBudgets = data.budgets || {};
+        if (Object.keys(localBudgets).some(k => !(k in remoteBudgets))) needsPush = true;
+        Object.keys(budgets).forEach(k => delete budgets[k]);
+        Object.assign(budgets, remoteBudgets, localBudgets);
+        localStorage.setItem("cashewdollar_budgets", JSON.stringify(budgets));
 
-        if (data.categories) {
-          categoriesPerso.length = 0;
-          data.categories.forEach(c => categoriesPerso.push(c));
-          localStorage.setItem("cashewdollar_cats", JSON.stringify(categoriesPerso));
-          peuplerSelectsCategories();
-        }
+        // Merge categories: union of both arrays
+        const remoteCats = data.categories || [];
+        const remoteSet  = new Set(remoteCats);
+        const catExtra   = localCats.filter(c => !remoteSet.has(c));
+        if (catExtra.length > 0) needsPush = true;
+        categoriesPerso.length = 0;
+        [...remoteCats, ...catExtra].forEach(c => categoriesPerso.push(c));
+        localStorage.setItem("cashewdollar_cats", JSON.stringify(categoriesPerso));
+        peuplerSelectsCategories();
 
         if (data.theme) {
           const isDark = data.theme === "dark";
@@ -459,7 +478,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
         rafraichir();
         verifierRappels();
+        if (needsPush) window.saveToFirebase(); // push merged data back
       } else {
+        // Firebase empty — push local data
         window.saveToFirebase();
       }
     }, err => { console.error("Firebase listener error:", err); });
