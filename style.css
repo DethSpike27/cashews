@@ -755,6 +755,12 @@ body.dark .export-menu li button:hover { background: var(--entry); }
   transition: background .2s; flex-shrink: 0; white-space: nowrap;
 }
 .auth-btn:hover { background: rgba(255,255,255,.28); }
+.sync-label {
+  font-size: .68rem;
+  color: rgba(255,255,255,.7);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
 .auth-avatar {
   width: 20px; height: 20px; border-radius: 50%; vertical-align: middle;
 }

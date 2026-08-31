@@ -218,17 +218,32 @@ let fbCurrentUser = null;
 let fbUserRef     = null;
 let fbSyncingCount = 0;
 
+function updateSyncIndicator(isoDate) {
+  const el = document.getElementById("sync-label");
+  if (!el || !isoDate) return;
+  const diff = Math.floor((Date.now() - new Date(isoDate)) / 86400000);
+  const fr = langue === "fr";
+  let text;
+  if (diff === 0) text = fr ? "sync : aujourd'hui" : "sync: today";
+  else if (diff === 1) text = fr ? "sync : hier" : "sync: yesterday";
+  else text = fr ? `sync : il y a ${diff} j` : `sync: ${diff}d ago`;
+  el.textContent = text;
+  el.title = new Date(isoDate).toLocaleString();
+}
+
 window.saveToFirebase = function() {
   if (!fbCurrentUser || !fbUserRef) return;
   fbSyncingCount++;
+  const nowIso = new Date().toISOString();
   fbUserRef.set({
     transactions: transactions,
     budgets:      budgets,
     categories:   categoriesPerso,
     theme:        localStorage.getItem("cashewdollar_theme")  || "light",
-    langue:       localStorage.getItem("cashewdollar_langue") || "fr"
+    langue:       localStorage.getItem("cashewdollar_langue") || "fr",
+    lastModified: nowIso
   })
-  .then(()  => { fbSyncingCount--; })
+  .then(()  => { fbSyncingCount--; updateSyncIndicator(nowIso); })
   .catch(err => { fbSyncingCount--; console.error("Firebase save error:", err); });
 };
 
@@ -426,6 +441,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (fbSyncingCount > 0) return;
 
       const data = snapshot.val();
+      if (data && data.lastModified) updateSyncIndicator(data.lastModified);
       const localTx      = [...transactions];
       const localBudgets = Object.assign({}, budgets);
       const localCats    = [...categoriesPerso];
