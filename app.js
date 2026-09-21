@@ -466,7 +466,47 @@ document.addEventListener("DOMContentLoaded", () => {
     fbUserRef.on("value", snapshot => {
       if (fbSyncingCount > 0) return;
 
-      // Vérifier si on vient de faire un CLEAR ALL (dans les 10 dernières secondes)
+      const data = snapshot.val();
+
+      // DÉTECTER si un CLEAR ALL a été fait depuis un autre appareil
+      if (data && data.clearAllTimestamp) {
+        const lastClearLocal = localStorage.getItem("cashewdollar_last_clear_processed");
+        const clearTimestamp = data.clearAllTimestamp;
+
+        // Si on n'a jamais traité ce clear, ou si c'est un nouveau clear
+        if (!lastClearLocal || parseInt(lastClearLocal) < clearTimestamp) {
+          console.log("🚨 CLEAR ALL détecté depuis un autre appareil - suppression forcée locale");
+
+          // Marquer qu'on a traité ce clear
+          localStorage.setItem("cashewdollar_last_clear_processed", clearTimestamp.toString());
+
+          // Supprimer TOUTES les données locales
+          transactions.length = 0;
+          Object.keys(budgets).forEach(k => delete budgets[k]);
+          categoriesPerso.length = 0;
+          CATEGORIES_DEFAULT.forEach(c => categoriesPerso.push(c));
+
+          localStorage.setItem("cashewdollar_tx", JSON.stringify([]));
+          localStorage.setItem("cashewdollar_budgets", JSON.stringify({}));
+          localStorage.setItem("cashewdollar_cats", JSON.stringify(CATEGORIES_DEFAULT));
+
+          // Rafraîchir l'interface
+          peuplerSelectsCategories();
+          rafraichir();
+          verifierRappels();
+
+          console.log("✓ Données locales supprimées suite au CLEAR ALL distant");
+
+          // Afficher un message à l'utilisateur
+          const msgCleared = langue === "en"
+            ? "All data has been cleared from another device.\n\nThis device has been synchronized."
+            : "Toutes les données ont été effacées depuis un autre appareil.\n\nCet appareil a été synchronisé.";
+          alert(msgCleared);
+          return; // Ne pas continuer le traitement normal
+        }
+      }
+
+      // Vérifier si on vient de faire un CLEAR ALL localement (dans les 10 dernières secondes)
       const justCleared = localStorage.getItem("cashewdollar_just_cleared");
       if (justCleared) {
         const clearTime = parseInt(justCleared);
@@ -474,15 +514,13 @@ document.addEventListener("DOMContentLoaded", () => {
         const elapsed = now - clearTime;
 
         if (elapsed < 10000) { // Moins de 10 secondes
-          console.log(`CLEAR ALL récent (il y a ${Math.floor(elapsed/1000)}s) - IGNORER Firebase sync`);
+          console.log(`CLEAR ALL local récent (il y a ${Math.floor(elapsed/1000)}s) - IGNORER Firebase sync`);
           return; // IGNORER complètement la sync entrante
         } else {
           // Plus de 10 secondes - retirer le flag
           localStorage.removeItem("cashewdollar_just_cleared");
         }
       }
-
-      const data = snapshot.val();
       if (data && data.lastModified) updateSyncIndicator(data.lastModified);
       const localTx      = [...transactions];
       const localBudgets = Object.assign({}, budgets);
@@ -1660,7 +1698,8 @@ function clearAll() {
       categories: CATEGORIES_DEFAULT,
       theme: localStorage.getItem("cashewdollar_theme") || "light",
       langue: localStorage.getItem("cashewdollar_langue") || "fr",
-      lastModified: new Date().toISOString()
+      lastModified: new Date().toISOString(),
+      clearAllTimestamp: Date.now() // Signal pour forcer la suppression sur TOUS les appareils
     };
 
     console.log("Envoi de la suppression à Firebase...");
