@@ -536,15 +536,16 @@ document.addEventListener("DOMContentLoaded", () => {
       let needsPush = false;
 
       if (hasRemote) {
-        // VÉRIFICATION CRITIQUE : Si Firebase a un clearAllTimestamp récent (moins de 5 minutes)
-        // Ne JAMAIS pousser de données locales - forcer la suppression
+        // VÉRIFICATION CRITIQUE : Si Firebase a clearAllTimestamp ET est vide
+        // → Un clear all a été fait → TOUJOURS forcer la suppression locale
+        // → JAMAIS pousser des données locales (sinon ça annule le clear)
         if (data.clearAllTimestamp) {
-          const clearAge = Date.now() - data.clearAllTimestamp;
-          const fiveMinutes = 5 * 60 * 1000;
+          const remoteIsEmpty = !data.transactions || data.transactions.length === 0;
 
-          if (clearAge < fiveMinutes) {
-            console.log(`⚠️ Clear All récent détecté sur Firebase (il y a ${Math.floor(clearAge/1000)}s)`);
-            console.log("→ FORCER la suppression locale, BLOQUER le push");
+          if (remoteIsEmpty && hasLocal) {
+            console.log("🚨 Firebase a été vidé intentionnellement (clearAllTimestamp présent)");
+            console.log(`   Timestamp du clear: ${new Date(data.clearAllTimestamp).toLocaleString()}`);
+            console.log(`   Local a ${localTx.length} transaction(s) → SUPPRESSION FORCÉE`);
 
             // Marquer ce clear comme traité
             localStorage.setItem("cashewdollar_last_clear_processed", data.clearAllTimestamp.toString());
@@ -564,7 +565,8 @@ document.addEventListener("DOMContentLoaded", () => {
             verifierRappels();
 
             console.log("✓ Données locales supprimées - AUCUN push vers Firebase");
-            return; // NE PAS CONTINUER - ne pas merger, ne pas pousser
+            console.log("→ Firebase reste vide comme prévu");
+            return; // STOP - ne pas merger, ne pas pousser
           }
         }
 
