@@ -466,30 +466,20 @@ document.addEventListener("DOMContentLoaded", () => {
     fbUserRef.on("value", snapshot => {
       if (fbSyncingCount > 0) return;
 
-      // Vérifier si un CLEAR ALL est en attente
-      const pendingClear = localStorage.getItem("cashewdollar_pending_clear");
-      if (pendingClear === "true") {
-        console.log("CLEAR ALL en attente - suppression forcée des données Firebase");
-        localStorage.removeItem("cashewdollar_pending_clear");
+      // Vérifier si on vient de faire un CLEAR ALL (dans les 10 dernières secondes)
+      const justCleared = localStorage.getItem("cashewdollar_just_cleared");
+      if (justCleared) {
+        const clearTime = parseInt(justCleared);
+        const now = Date.now();
+        const elapsed = now - clearTime;
 
-        // Forcer la suppression sur Firebase
-        fbSyncingCount++;
-        fbUserRef.set({
-          transactions: [],
-          budgets: {},
-          categories: CATEGORIES_DEFAULT,
-          theme: localStorage.getItem("cashewdollar_theme") || "light",
-          langue: localStorage.getItem("cashewdollar_langue") || "fr",
-          lastModified: new Date().toISOString()
-        }).then(() => {
-          fbSyncingCount--;
-          console.log("Firebase forcé à vide - reload dans 2 secondes");
-          setTimeout(() => window.location.reload(true), 2000);
-        }).catch(() => {
-          fbSyncingCount--;
-          console.error("Erreur lors du clear all Firebase");
-        });
-        return;
+        if (elapsed < 10000) { // Moins de 10 secondes
+          console.log(`CLEAR ALL récent (il y a ${Math.floor(elapsed/1000)}s) - IGNORER Firebase sync`);
+          return; // IGNORER complètement la sync entrante
+        } else {
+          // Plus de 10 secondes - retirer le flag
+          localStorage.removeItem("cashewdollar_just_cleared");
+        }
       }
 
       const data = snapshot.val();
@@ -1655,72 +1645,81 @@ function clearAll() {
     }
   }
 
-  // Marquer qu'on veut faire un CLEAR ALL (pour éviter la re-sync au reload)
-  localStorage.setItem("cashewdollar_pending_clear", "true");
-
-  // Suppression effective
-  transactions.length = 0;
-  Object.keys(budgets).forEach(k => delete budgets[k]);
-  categoriesPerso.length = 0;
-  CATEGORIES_DEFAULT.forEach(c => categoriesPerso.push(c));
-
-  // Sauvegarder localement
-  localStorage.setItem("cashewdollar_tx", JSON.stringify(transactions));
-  localStorage.setItem("cashewdollar_budgets", JSON.stringify(budgets));
-  localStorage.setItem("cashewdollar_cats", JSON.stringify(categoriesPerso));
-
-  // Synchroniser avec Firebase - BLOQUER la re-sync des autres appareils
+  // Synchroniser avec Firebase - FORCER l'écriture avant tout
   if (fbCurrentUser && fbUserRef) {
-    console.log("Suppression Firebase en cours...");
+    console.log("=== CLEAR ALL : Début de la suppression ===");
 
-    // Désactiver COMPLÈTEMENT le listener pour éviter la re-sync
+    // ÉTAPE 1: Désactiver COMPLÈTEMENT le listener
     fbUserRef.off();
+    fbSyncingCount = 999; // Bloquer toute sync
 
-    // Incrémenter le compteur pour bloquer le listener
-    fbSyncingCount = 999;
-
-    fbUserRef.set({
+    // ÉTAPE 2: Écrire immédiatement sur Firebase (avant même de supprimer localement)
+    const emptyData = {
       transactions: [],
       budgets: {},
-      categories: categoriesPerso,
+      categories: CATEGORIES_DEFAULT,
       theme: localStorage.getItem("cashewdollar_theme") || "light",
       langue: localStorage.getItem("cashewdollar_langue") || "fr",
       lastModified: new Date().toISOString()
-    })
+    };
+
+    console.log("Envoi de la suppression à Firebase...");
+    fbUserRef.set(emptyData)
     .then(() => {
-      console.log("Suppression Firebase reussie - attente de 2 secondes...");
-      // Attendre 2 secondes pour que Firebase propage vraiment la suppression
+      console.log("✓ Firebase écrit avec succès");
+
+      // ÉTAPE 3: Maintenant supprimer localement
+      transactions.length = 0;
+      Object.keys(budgets).forEach(k => delete budgets[k]);
+      categoriesPerso.length = 0;
+      CATEGORIES_DEFAULT.forEach(c => categoriesPerso.push(c));
+
+      localStorage.setItem("cashewdollar_tx", JSON.stringify([]));
+      localStorage.setItem("cashewdollar_budgets", JSON.stringify({}));
+      localStorage.setItem("cashewdollar_cats", JSON.stringify(CATEGORIES_DEFAULT));
+
+      // ÉTAPE 4: Marquer qu'on a fait un clear (sécurité)
+      localStorage.setItem("cashewdollar_just_cleared", Date.now().toString());
+
+      console.log("✓ Données locales supprimées");
+
+      // ÉTAPE 5: Attendre que Firebase propage (important!)
+      console.log("Attente de propagation Firebase (3 secondes)...");
       setTimeout(() => {
         fbSyncingCount = 0;
         const msgSuccess = lang === "en"
-          ? "All data has been deleted from all devices.\n\nThe page will reload in 3 seconds."
-          : "Toutes les donnees ont ete supprimees de tous les appareils.\n\nLa page va se recharger dans 3 secondes.";
+          ? "All data deleted successfully.\n\nPage will reload now."
+          : "Toutes les donnees supprimees avec succes.\n\nLa page va se recharger.";
         alert(msgSuccess);
-        // Attendre encore 3 secondes avant de recharger
-        setTimeout(() => {
-          console.log("Rechargement de la page...");
-          window.location.reload(true); // Force reload sans cache
-        }, 3000);
-      }, 2000);
+
+        // ÉTAPE 6: Recharger
+        console.log("Rechargement...");
+        window.location.reload(true);
+      }, 3000);
     })
     .catch((err) => {
       fbSyncingCount = 0;
-      console.error("Erreur suppression Firebase:", err);
+      console.error("✗ Erreur Firebase:", err);
       const msgError = lang === "en"
-        ? "Local data deleted but Firebase sync failed.\n\nYou may need to clear cloud data manually from another device or sign out/in again."
-        : "Donnees locales supprimees mais erreur de synchro Firebase.\n\nVous devrez peut-etre effacer les donnees cloud depuis un autre appareil ou vous deconnecter/reconnecter.";
+        ? "Firebase error. Try signing out and back in, then clear again."
+        : "Erreur Firebase. Essayez de vous deconnecter puis reconnecter, puis effacer à nouveau.";
       alert(msgError);
-      // Rafraîchir quand même
-      peuplerSelectsCategories();
-      rafraichir();
-      verifierRappels();
     });
   } else {
+    // Pas de Firebase - suppression locale seulement
+    transactions.length = 0;
+    Object.keys(budgets).forEach(k => delete budgets[k]);
+    categoriesPerso.length = 0;
+    CATEGORIES_DEFAULT.forEach(c => categoriesPerso.push(c));
+
+    localStorage.setItem("cashewdollar_tx", JSON.stringify([]));
+    localStorage.setItem("cashewdollar_budgets", JSON.stringify({}));
+    localStorage.setItem("cashewdollar_cats", JSON.stringify(CATEGORIES_DEFAULT));
+
     const msgSuccess = lang === "en"
-      ? "All data has been deleted.\n\nThe page will reload."
-      : "Toutes les donnees ont ete supprimees.\n\nLa page va se recharger.";
+      ? "All data deleted. Page will reload."
+      : "Toutes les donnees supprimees. La page va se recharger.";
     alert(msgSuccess);
-    // Recharger la page immédiatement (pas de Firebase)
     setTimeout(() => window.location.reload(true), 1000);
   }
 }
