@@ -378,6 +378,9 @@ document.addEventListener("DOMContentLoaded", () => {
   // Bouton nettoyer doublons
   document.getElementById("btn-nettoyer-doublons").addEventListener("click", nettoyerDoublons);
 
+  // Bouton clear all
+  document.getElementById("btn-clear-all").addEventListener("click", clearAll);
+
   // Boutons récurrence
   document.getElementById("btn-rec-non").addEventListener("click", () => confirmerAjout("non"));
   document.getElementById("btn-rec-1x").addEventListener("click",  () => confirmerAjout("1x"));
@@ -1545,6 +1548,111 @@ function ouvrirVueAnnuelle() {
   </tr></tfoot></table>`;
   document.getElementById("annuelle-result").innerHTML = html;
   document.getElementById("annuelle-overlay").style.display = "flex";
+}
+
+// ── Effacer TOUTES les données ───────────────────────────────────────────────
+function clearAll() {
+  const lang = (typeof langue !== "undefined") ? langue : "fr";
+
+  // Étape 1: Premier avertissement
+  const msg1 = lang === "en"
+    ? "⚠️ WARNING: COMPLETE RESET\n\nThis will DELETE ALL your data:\n• All transactions (all months)\n• All budgets\n• All custom categories\n\nThis action is IRREVERSIBLE.\n\nDo you want to continue?"
+    : "⚠️ ATTENTION : RÉINITIALISATION COMPLÈTE\n\nCela va SUPPRIMER TOUTES vos données :\n• Toutes les transactions (tous les mois)\n• Tous les budgets\n• Toutes les catégories personnalisées\n\nCette action est IRRÉVERSIBLE.\n\nVoulez-vous continuer ?";
+
+  if (!confirm(msg1)) return;
+
+  // Étape 2: Proposition d'export
+  const totalTx = transactions.length;
+  const msg2 = lang === "en"
+    ? `You currently have ${totalTx} transaction(s).\n\nDo you want to EXPORT your data before deleting?\n\n✅ YES = Export then delete\n❌ NO = Delete without export`
+    : `Vous avez actuellement ${totalTx} transaction(s).\n\nVoulez-vous EXPORTER vos données avant de les supprimer ?\n\n✅ OUI = Exporter puis supprimer\n❌ NON = Supprimer sans exporter`;
+
+  if (confirm(msg2)) {
+    // Export automatique avant suppression
+    const today = new Date().toISOString().slice(0,10).replace(/-/g,"_");
+    const backup = {
+      exportDate: new Date().toISOString(),
+      transactions: transactions,
+      budgets: budgets,
+      categories: categoriesPerso
+    };
+    telecharger(JSON.stringify(backup, null, 2), `cashews_BACKUP_${today}.json`, "application/json");
+
+    const msg3 = lang === "en"
+      ? "✅ Backup exported!\n\nNow, are you ABSOLUTELY SURE you want to delete everything?\n\nType 'DELETE' (in capital letters) to confirm:"
+      : "✅ Sauvegarde exportée !\n\nMaintenant, êtes-vous ABSOLUMENT SÛR de vouloir tout supprimer ?\n\nTapez 'SUPPRIMER' (en majuscules) pour confirmer :";
+
+    const confirmation = prompt(msg3);
+    const expectedWord = lang === "en" ? "DELETE" : "SUPPRIMER";
+
+    if (confirmation !== expectedWord) {
+      const msgCancel = lang === "en" ? "❌ Deletion cancelled." : "❌ Suppression annulée.";
+      alert(msgCancel);
+      return;
+    }
+  } else {
+    // Pas d'export - confirmation finale stricte
+    const msg3 = lang === "en"
+      ? "⚠️ LAST WARNING!\n\nYou are about to delete EVERYTHING without backup.\n\nType 'DELETE EVERYTHING' (in capital letters) to confirm:"
+      : "⚠️ DERNIER AVERTISSEMENT !\n\nVous êtes sur le point de tout supprimer SANS sauvegarde.\n\nTapez 'TOUT SUPPRIMER' (en majuscules) pour confirmer :";
+
+    const confirmation = prompt(msg3);
+    const expectedPhrase = lang === "en" ? "DELETE EVERYTHING" : "TOUT SUPPRIMER";
+
+    if (confirmation !== expectedPhrase) {
+      const msgCancel = lang === "en" ? "❌ Deletion cancelled." : "❌ Suppression annulée.";
+      alert(msgCancel);
+      return;
+    }
+  }
+
+  // Suppression effective
+  transactions.length = 0;
+  Object.keys(budgets).forEach(k => delete budgets[k]);
+  categoriesPerso.length = 0;
+  CATEGORIES_DEFAULT.forEach(c => categoriesPerso.push(c));
+
+  // Sauvegarder localement
+  localStorage.setItem("cashewdollar_tx", JSON.stringify(transactions));
+  localStorage.setItem("cashewdollar_budgets", JSON.stringify(budgets));
+  localStorage.setItem("cashewdollar_cats", JSON.stringify(categoriesPerso));
+
+  // Synchroniser avec Firebase
+  if (fbCurrentUser && fbUserRef) {
+    fbSyncingCount++;
+    fbUserRef.set({
+      transactions: [],
+      budgets: {},
+      categories: categoriesPerso,
+      theme: localStorage.getItem("cashewdollar_theme") || "light",
+      langue: localStorage.getItem("cashewdollar_langue") || "fr",
+      lastModified: new Date().toISOString()
+    })
+    .then(() => {
+      fbSyncingCount--;
+      const msgSuccess = lang === "en"
+        ? "✅ All data has been deleted.\n\nYou can start fresh!"
+        : "✅ Toutes les données ont été supprimées.\n\nVous pouvez repartir à zéro !";
+      alert(msgSuccess);
+    })
+    .catch(() => {
+      fbSyncingCount--;
+      const msgSuccess = lang === "en"
+        ? "✅ Local data deleted.\n\n⚠️ Firebase sync failed - you may need to clear cloud data manually."
+        : "✅ Données locales supprimées.\n\n⚠️ Erreur de synchro Firebase - vous devrez peut-être effacer les données cloud manuellement.";
+      alert(msgSuccess);
+    });
+  } else {
+    const msgSuccess = lang === "en"
+      ? "✅ All data has been deleted.\n\nYou can start fresh!"
+      : "✅ Toutes les données ont été supprimées.\n\nVous pouvez repartir à zéro !";
+    alert(msgSuccess);
+  }
+
+  // Rafraîchir l'interface
+  peuplerSelectsCategories();
+  rafraichir();
+  verifierRappels();
 }
 
 // ── Nettoyage des doublons ───────────────────────────────────────────────────

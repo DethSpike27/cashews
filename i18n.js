@@ -127,6 +127,11 @@ const LANG = {
     "btn-graphique":          "📈 Graphique",
     "btn-categories":         "🏷️ Catégories",
 
+    // Maintenance
+    "h2-maintenance":         "🛠️ Maintenance",
+    "btn-nettoyer":           "🧹 Nettoyer doublons",
+    "btn-clear-all":          "🗑️ Tout effacer",
+
     // Liste / tableau
     "search-ph":              "🔍 Rechercher une transaction…",
     "filter-legend":          "Filtrer :",
@@ -263,6 +268,11 @@ const LANG = {
     "btn-annuelle":           "📅 Yearly view",
     "btn-graphique":          "📈 Chart",
     "btn-categories":         "🏷️ Categories",
+
+    // Maintenance
+    "h2-maintenance":         "🛠️ Maintenance",
+    "btn-nettoyer":           "🧹 Clean duplicates",
+    "btn-clear-all":          "🗑️ Clear all",
 
     // List / table
     "search-ph":              "🔍 Search a transaction…",
