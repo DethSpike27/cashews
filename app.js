@@ -208,10 +208,24 @@ const MOIS_NOMS = ["Janvier","Février","Mars","Avril","Mai","Juin",
 
 const CATEGORIES_DEFAULT = ["Salaire","Alimentation","Loyer","Transport","Loisirs","Santé","Épargne","Autre"];
 
+// ── Génération d'ID unique ────────────────────────────────────────────────────
+function genererID() {
+  return `tx_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+}
+
 let transactions  = JSON.parse(localStorage.getItem("cashewdollar_tx")   || "[]");
 let budgets       = JSON.parse(localStorage.getItem("cashewdollar_budgets") || "{}");
 let categoriesPerso = JSON.parse(localStorage.getItem("cashewdollar_cats") || "null");
 if (!categoriesPerso) categoriesPerso = [...CATEGORIES_DEFAULT];
+
+// ── Migration : ajouter des IDs aux transactions existantes ──────────────────
+transactions = transactions.map(t => {
+  if (!t.id) t.id = genererID();
+  return t;
+});
+if (transactions.some(t => !t.id)) {
+  localStorage.setItem("cashewdollar_tx", JSON.stringify(transactions));
+}
 
 // ── Firebase sync ─────────────────────────────────────────────────────────────
 let fbCurrentUser = null;
@@ -453,13 +467,19 @@ document.addEventListener("DOMContentLoaded", () => {
       let needsPush = false;
 
       if (hasRemote) {
-        // Merge transactions: union by composite key — never lose a transaction
-        const txKey = t => `${t.date}|${t.description}|${t.montant}|${t.type}`;
-        const remoteKeys = new Set((data.transactions || []).map(txKey));
-        const localExtra = localTx.filter(t => !remoteKeys.has(txKey(t)));
+        // Merge transactions: union by ID — never lose a transaction
+        const remoteTx = (data.transactions || []).map(t => {
+          if (!t.id) t.id = genererID(); // Assigner un ID si manquant
+          return t;
+        });
+        const remoteIDs = new Set(remoteTx.map(t => t.id));
+        const localExtra = localTx.filter(t => {
+          if (!t.id) t.id = genererID(); // Assigner un ID si manquant
+          return !remoteIDs.has(t.id);
+        });
         if (localExtra.length > 0) needsPush = true;
         transactions.length = 0;
-        [...(data.transactions || []), ...localExtra].forEach(t => transactions.push(t));
+        [...remoteTx, ...localExtra].forEach(t => transactions.push(t));
         localStorage.setItem("cashewdollar_tx", JSON.stringify(transactions));
 
         // Merge budgets: remote base + local overrides (preserves offline changes)
@@ -730,7 +750,16 @@ function ajouterTransaction() {
     _pendingTx = { date, description: desc, categorie: cat, type, montant, note };
     document.getElementById("recurrence-overlay").style.display = "flex";
   } else {
-    transactions.push({ date, description: desc, categorie: cat, type, montant, recurrence: "non", note });
+    transactions.push({
+      id: genererID(),
+      date,
+      description: desc,
+      categorie: cat,
+      type,
+      montant,
+      recurrence: "non",
+      note
+    });
     sauvegarder();
     _resetFormulaire();
     rafraichir();
@@ -740,6 +769,7 @@ function ajouterTransaction() {
 function confirmerAjout(recurrence) {
   if (!_pendingTx) return;
   _pendingTx.recurrence = recurrence;
+  _pendingTx.id = genererID(); // Ajouter un ID unique
   transactions.push(_pendingTx);
   _pendingTx = null;
   sauvegarder();
@@ -896,7 +926,17 @@ function sauvegarderModif() {
     recurrence = recChecked ? recChecked.value : "non";
   }
   const note = (document.getElementById("m-note")?.value || "").trim();
-  transactions[idxEnEdition] = { date, description: desc, categorie: cat, type, montant, recurrence, note };
+  const existingId = transactions[idxEnEdition].id || genererID();
+  transactions[idxEnEdition] = {
+    id: existingId,
+    date,
+    description: desc,
+    categorie: cat,
+    type,
+    montant,
+    recurrence,
+    note
+  };
   sauvegarder();
   document.getElementById("modal-overlay").style.display = "none";
   idxEnEdition = -1;
@@ -1187,8 +1227,12 @@ function lireFichier(event) {
       let nouvelles = [];
       if (file.name.endsWith(".json")) {
         nouvelles = JSON.parse(e.target.result);
-        // Normaliser le champ statut si absent
-        nouvelles = nouvelles.map(n => ({ ...n, statut: n.statut || "payé" }));
+        // Normaliser le champ statut et ID si absents
+        nouvelles = nouvelles.map(n => ({
+          ...n,
+          statut: n.statut || "payé",
+          id: n.id || genererID()
+        }));
       } else {
         const lines = e.target.result.trim().split("\n");
         const headers = lines[0].split(",");
@@ -1200,6 +1244,7 @@ function lireFichier(event) {
           obj.recurrence = obj.recurrence || "non";
           obj.statut     = obj.statut || "payé";
           obj.note       = obj.note || "";
+          obj.id         = obj.id || genererID();
           return obj;
         });
       }
@@ -1285,6 +1330,7 @@ function traiterRappelsAjouter() {
     const inputMontant = document.querySelector(`.rappel-montant-input[data-idx="${idx}"]`);
     const montant = inputMontant ? (parseFloat(inputMontant.value) || t.montant) : t.montant;
     transactions.push({
+      id: genererID(),
       date: dateAjout,
       description: t.description,
       categorie: t.categorie,
