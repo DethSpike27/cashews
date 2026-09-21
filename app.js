@@ -1592,7 +1592,15 @@ function clearAll() {
     const confirmation = prompt(msg3);
     const expectedWord = lang === "en" ? "DELETE" : "SUPPRIMER";
 
-    if (confirmation !== expectedWord) {
+    // Accepter avec ou sans accents, majuscules/minuscules
+    const normalizedConfirm = (confirmation || "").toUpperCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+    const normalizedExpected = expectedWord.normalize("NFD").replace(/[̀-ͯ]/g, "");
+
+    console.log("Confirmation tapee:", confirmation);
+    console.log("Attendu:", expectedWord);
+    console.log("Match:", normalizedConfirm === normalizedExpected);
+
+    if (normalizedConfirm !== normalizedExpected) {
       const msgCancel = lang === "en" ? "❌ Deletion cancelled." : "❌ Suppression annulée.";
       alert(msgCancel);
       return;
@@ -1606,7 +1614,15 @@ function clearAll() {
     const confirmation = prompt(msg3);
     const expectedPhrase = lang === "en" ? "DELETE EVERYTHING" : "TOUT SUPPRIMER";
 
-    if (confirmation !== expectedPhrase) {
+    // Accepter avec ou sans accents, majuscules/minuscules
+    const normalizedConfirm = (confirmation || "").toUpperCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+    const normalizedExpected = expectedPhrase.normalize("NFD").replace(/[̀-ͯ]/g, "");
+
+    console.log("Confirmation tapee:", confirmation);
+    console.log("Attendu:", expectedPhrase);
+    console.log("Match:", normalizedConfirm === normalizedExpected);
+
+    if (normalizedConfirm !== normalizedExpected) {
       const msgCancel = lang === "en" ? "❌ Deletion cancelled." : "❌ Suppression annulée.";
       alert(msgCancel);
       return;
@@ -1624,8 +1640,13 @@ function clearAll() {
   localStorage.setItem("cashewdollar_budgets", JSON.stringify(budgets));
   localStorage.setItem("cashewdollar_cats", JSON.stringify(categoriesPerso));
 
-  // Synchroniser avec Firebase
+  // Synchroniser avec Firebase et recharger la page
   if (fbCurrentUser && fbUserRef) {
+    console.log("Suppression Firebase en cours...");
+
+    // Désactiver le listener pour éviter la re-sync
+    fbUserRef.off("value");
+
     fbSyncingCount++;
     fbUserRef.set({
       transactions: [],
@@ -1637,29 +1658,32 @@ function clearAll() {
     })
     .then(() => {
       fbSyncingCount--;
+      console.log("Suppression Firebase reussie");
       const msgSuccess = lang === "en"
-        ? "✅ All data has been deleted.\n\nYou can start fresh!"
-        : "✅ Toutes les données ont été supprimées.\n\nVous pouvez repartir à zéro !";
+        ? "All data has been deleted from all devices.\n\nThe page will reload."
+        : "Toutes les donnees ont ete supprimees de tous les appareils.\n\nLa page va se recharger.";
       alert(msgSuccess);
+      // Recharger la page pour repartir à zéro proprement
+      window.location.reload();
     })
-    .catch(() => {
+    .catch((err) => {
       fbSyncingCount--;
-      const msgSuccess = lang === "en"
-        ? "✅ Local data deleted.\n\n⚠️ Firebase sync failed - you may need to clear cloud data manually."
-        : "✅ Données locales supprimées.\n\n⚠️ Erreur de synchro Firebase - vous devrez peut-être effacer les données cloud manuellement.";
-      alert(msgSuccess);
+      console.error("Erreur suppression Firebase:", err);
+      const msgError = lang === "en"
+        ? "Local data deleted.\n\nFirebase sync failed - you may need to clear cloud data manually.\n\nThe page will reload."
+        : "Donnees locales supprimees.\n\nErreur de synchro Firebase - vous devrez peut-etre effacer les donnees cloud manuellement.\n\nLa page va se recharger.";
+      alert(msgError);
+      // Recharger quand même pour éviter la confusion
+      window.location.reload();
     });
   } else {
     const msgSuccess = lang === "en"
-      ? "✅ All data has been deleted.\n\nYou can start fresh!"
-      : "✅ Toutes les données ont été supprimées.\n\nVous pouvez repartir à zéro !";
+      ? "All data has been deleted.\n\nThe page will reload."
+      : "Toutes les donnees ont ete supprimees.\n\nLa page va se recharger.";
     alert(msgSuccess);
+    // Recharger la page
+    window.location.reload();
   }
-
-  // Rafraîchir l'interface
-  peuplerSelectsCategories();
-  rafraichir();
-  verifierRappels();
 }
 
 // ── Nettoyage des doublons ───────────────────────────────────────────────────
