@@ -379,7 +379,13 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("btn-nettoyer-doublons").addEventListener("click", nettoyerDoublons);
 
   // Bouton clear all
-  document.getElementById("btn-clear-all").addEventListener("click", clearAll);
+  const btnClearAll = document.getElementById("btn-clear-all");
+  if (btnClearAll) {
+    console.log("Bouton clear-all trouve");
+    btnClearAll.addEventListener("click", clearAll);
+  } else {
+    console.error("Bouton clear-all NON trouve");
+  }
 
   // Boutons récurrence
   document.getElementById("btn-rec-non").addEventListener("click", () => confirmerAjout("non"));
@@ -1552,6 +1558,7 @@ function ouvrirVueAnnuelle() {
 
 // ── Effacer TOUTES les données ───────────────────────────────────────────────
 function clearAll() {
+  console.log("Fonction clearAll() appelee");
   const lang = (typeof langue !== "undefined") ? langue : "fr";
 
   // Étape 1: Premier avertissement
