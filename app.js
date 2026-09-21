@@ -467,16 +467,44 @@ document.addEventListener("DOMContentLoaded", () => {
       let needsPush = false;
 
       if (hasRemote) {
-        // Merge transactions: union by ID — never lose a transaction
+        // Merge transactions: union by ID + détection de doublons
+        // Créer une signature unique pour détecter les vraies doublons (même si IDs différents)
+        const txSignature = t => `${t.date}|${t.description}|${t.montant}|${t.type}|${t.categorie}`;
+
         const remoteTx = (data.transactions || []).map(t => {
           if (!t.id) t.id = genererID(); // Assigner un ID si manquant
           return t;
         });
+
+        // Map des signatures remote vers transactions
+        const remoteSigMap = new Map();
+        remoteTx.forEach(t => {
+          const sig = txSignature(t);
+          if (!remoteSigMap.has(sig)) {
+            remoteSigMap.set(sig, t);
+          }
+        });
+
         const remoteIDs = new Set(remoteTx.map(t => t.id));
         const localExtra = localTx.filter(t => {
           if (!t.id) t.id = genererID(); // Assigner un ID si manquant
-          return !remoteIDs.has(t.id);
+
+          // Ignorer si même ID
+          if (remoteIDs.has(t.id)) return false;
+
+          // Ignorer si même signature (doublon réel)
+          const sig = txSignature(t);
+          if (remoteSigMap.has(sig)) {
+            // C'est un doublon - utiliser l'ID de la version remote pour la cohérence
+            const remoteDup = remoteSigMap.get(sig);
+            const idx = localTx.indexOf(t);
+            if (idx !== -1) localTx[idx].id = remoteDup.id;
+            return false;
+          }
+
+          return true;
         });
+
         if (localExtra.length > 0) needsPush = true;
         transactions.length = 0;
         [...remoteTx, ...localExtra].forEach(t => transactions.push(t));
@@ -1284,10 +1312,23 @@ function verifierRappels() {
     t.date.startsWith(prefixPrec) && t.type === "sortie" &&
     t.recurrence && t.recurrence !== "non"
   );
-  const descCour = new Set(
-    transactions.filter(t => t.date.startsWith(prefixCour)).map(t => t.description.toLowerCase())
-  );
-  _rappelsManquantes = recPrec.filter(t => !descCour.has(t.description.toLowerCase()));
+
+  // Compter combien de fois chaque transaction récurrente existe déjà ce mois
+  const txCourCounts = {};
+  transactions
+    .filter(t => t.date.startsWith(prefixCour) && t.type === "sortie")
+    .forEach(t => {
+      const key = `${t.description.toLowerCase()}|${t.montant}|${t.categorie}`;
+      txCourCounts[key] = (txCourCounts[key] || 0) + 1;
+    });
+
+  _rappelsManquantes = recPrec.filter(t => {
+    const key = `${t.description.toLowerCase()}|${t.montant}|${t.categorie}`;
+    const countActuel = txCourCounts[key] || 0;
+    const maxAllowed = t.recurrence === "2x" ? 2 : 1;
+    // Ne proposer le rappel QUE si on n'a pas atteint le maximum autorisé
+    return countActuel < maxAllowed;
+  });
 
   const banner = document.getElementById("rappels-banner");
   if (_rappelsManquantes.length === 0) { banner.style.display = "none"; return; }
