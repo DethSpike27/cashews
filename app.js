@@ -464,20 +464,20 @@ document.addEventListener("DOMContentLoaded", () => {
     fbSyncingCount = 0;
 
     fbUserRef.on("value", snapshot => {
-      if (fbSyncingCount > 0) return;
-
       const data = snapshot.val();
 
-      // DÉTECTER si un CLEAR ALL a été fait depuis un autre appareil
+      // PRIORITÉ ABSOLUE : Détecter un CLEAR ALL (même si fbSyncingCount > 0)
       if (data && data.clearAllTimestamp) {
         const lastClearLocal = localStorage.getItem("cashewdollar_last_clear_processed");
         const clearTimestamp = data.clearAllTimestamp;
 
-        // Si on n'a jamais traité ce clear, ou si c'est un nouveau clear
+        // Si c'est un nouveau clear jamais traité
         if (!lastClearLocal || parseInt(lastClearLocal) < clearTimestamp) {
-          console.log("🚨 CLEAR ALL détecté depuis un autre appareil - suppression forcée locale");
+          console.log("🚨 CLEAR ALL détecté depuis un autre appareil");
+          console.log(`   Timestamp: ${clearTimestamp}`);
+          console.log(`   Dernier traité: ${lastClearLocal || 'jamais'}`);
 
-          // Marquer qu'on a traité ce clear
+          // Marquer IMMÉDIATEMENT qu'on a traité ce clear
           localStorage.setItem("cashewdollar_last_clear_processed", clearTimestamp.toString());
 
           // Supprimer TOUTES les données locales
@@ -502,9 +502,12 @@ document.addEventListener("DOMContentLoaded", () => {
             ? "All data has been cleared from another device.\n\nThis device has been synchronized."
             : "Toutes les données ont été effacées depuis un autre appareil.\n\nCet appareil a été synchronisé.";
           alert(msgCleared);
-          return; // Ne pas continuer le traitement normal
+          return; // STOP - ne rien faire d'autre
         }
       }
+
+      // Check normal de syncing
+      if (fbSyncingCount > 0) return;
 
       // Vérifier si on vient de faire un CLEAR ALL localement (dans les 10 dernières secondes)
       const justCleared = localStorage.getItem("cashewdollar_just_cleared");
@@ -533,6 +536,38 @@ document.addEventListener("DOMContentLoaded", () => {
       let needsPush = false;
 
       if (hasRemote) {
+        // VÉRIFICATION CRITIQUE : Si Firebase a un clearAllTimestamp récent (moins de 5 minutes)
+        // Ne JAMAIS pousser de données locales - forcer la suppression
+        if (data.clearAllTimestamp) {
+          const clearAge = Date.now() - data.clearAllTimestamp;
+          const fiveMinutes = 5 * 60 * 1000;
+
+          if (clearAge < fiveMinutes) {
+            console.log(`⚠️ Clear All récent détecté sur Firebase (il y a ${Math.floor(clearAge/1000)}s)`);
+            console.log("→ FORCER la suppression locale, BLOQUER le push");
+
+            // Marquer ce clear comme traité
+            localStorage.setItem("cashewdollar_last_clear_processed", data.clearAllTimestamp.toString());
+
+            // Forcer la suppression locale
+            transactions.length = 0;
+            Object.keys(budgets).forEach(k => delete budgets[k]);
+            categoriesPerso.length = 0;
+            (data.categories || CATEGORIES_DEFAULT).forEach(c => categoriesPerso.push(c));
+
+            localStorage.setItem("cashewdollar_tx", JSON.stringify([]));
+            localStorage.setItem("cashewdollar_budgets", JSON.stringify({}));
+            localStorage.setItem("cashewdollar_cats", JSON.stringify(categoriesPerso));
+
+            peuplerSelectsCategories();
+            rafraichir();
+            verifierRappels();
+
+            console.log("✓ Données locales supprimées - AUCUN push vers Firebase");
+            return; // NE PAS CONTINUER - ne pas merger, ne pas pousser
+          }
+        }
+
         // Merge transactions: union by ID + détection de doublons
         // Créer une signature unique pour détecter les vraies doublons (même si IDs différents)
         const txSignature = t => `${t.date}|${t.description}|${t.montant}|${t.type}|${t.categorie}`;
