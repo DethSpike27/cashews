@@ -375,6 +375,9 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("btn-close-budget").addEventListener("click", () => document.getElementById("budget-overlay").style.display = "none");
   document.getElementById("btn-close-categories").addEventListener("click", () => document.getElementById("categories-overlay").style.display = "none");
 
+  // Bouton nettoyer doublons
+  document.getElementById("btn-nettoyer-doublons").addEventListener("click", nettoyerDoublons);
+
   // Boutons récurrence
   document.getElementById("btn-rec-non").addEventListener("click", () => confirmerAjout("non"));
   document.getElementById("btn-rec-1x").addEventListener("click",  () => confirmerAjout("1x"));
@@ -1542,6 +1545,103 @@ function ouvrirVueAnnuelle() {
   </tr></tfoot></table>`;
   document.getElementById("annuelle-result").innerHTML = html;
   document.getElementById("annuelle-overlay").style.display = "flex";
+}
+
+// ── Nettoyage des doublons ───────────────────────────────────────────────────
+function nettoyerDoublons() {
+  if (!confirm("⚠️ Cette opération va analyser et supprimer les transactions en double.\n\nVoulez-vous continuer ?")) return;
+
+  const aSupprimer = [];
+  const rapport = {};
+
+  // Grouper les transactions par mois + signature
+  const parMois = {};
+  transactions.forEach((t, idx) => {
+    const mois = t.date.substring(0, 7); // YYYY-MM
+    const sig = `${t.description}|${t.montant}|${t.categorie}|${t.type}`;
+    const key = `${mois}|${sig}`;
+
+    if (!parMois[key]) {
+      parMois[key] = [];
+    }
+    parMois[key].push({ tx: t, idx });
+  });
+
+  // Analyser chaque groupe
+  Object.entries(parMois).forEach(([key, groupe]) => {
+    if (groupe.length <= 1) return; // Pas de doublon
+
+    const [mois, ...sigParts] = key.split("|");
+    const sig = sigParts.join("|");
+    const premiereTx = groupe[0].tx;
+    const recurrence = premiereTx.recurrence || "non";
+
+    let maxAllowed;
+    if (recurrence === "1x") maxAllowed = 1;
+    else if (recurrence === "2x") maxAllowed = 2;
+    else maxAllowed = 1; // Ponctuelles: 1 seule
+
+    if (groupe.length > maxAllowed) {
+      // Trier par date (garder les plus anciennes) puis par statut (garder "payé" avant "estimé")
+      groupe.sort((a, b) => {
+        const dateComp = a.tx.date.localeCompare(b.tx.date);
+        if (dateComp !== 0) return dateComp;
+        const statutA = a.tx.statut || "payé";
+        const statutB = b.tx.statut || "payé";
+        if (statutA === "payé" && statutB === "estimé") return -1;
+        if (statutA === "estimé" && statutB === "payé") return 1;
+        return 0;
+      });
+
+      // Marquer l'excédent pour suppression
+      const excedent = groupe.slice(maxAllowed);
+      excedent.forEach(item => {
+        aSupprimer.push(item.idx);
+      });
+
+      // Rapport
+      const desc = premiereTx.description;
+      if (!rapport[desc]) {
+        rapport[desc] = { description: desc, mois: {}, total: 0 };
+      }
+      if (!rapport[desc].mois[mois]) {
+        rapport[desc].mois[mois] = 0;
+      }
+      rapport[desc].mois[mois] += excedent.length;
+      rapport[desc].total += excedent.length;
+    }
+  });
+
+  if (aSupprimer.length === 0) {
+    alert("✅ Aucun doublon détecté ! Vos transactions sont propres.");
+    return;
+  }
+
+  // Afficher le rapport
+  let message = `🧹 RAPPORT DE NETTOYAGE\n\n`;
+  message += `${aSupprimer.length} transaction(s) en double détectée(s) :\n\n`;
+
+  Object.values(rapport).forEach(r => {
+    message += `📌 ${r.description} : ${r.total} doublon(s)\n`;
+    Object.entries(r.mois).forEach(([m, count]) => {
+      message += `   • ${m} : ${count}×\n`;
+    });
+  });
+
+  message += `\n⚠️ Les doublons vont être SUPPRIMÉS définitivement.\n\nConfirmer la suppression ?`;
+
+  if (!confirm(message)) return;
+
+  // Supprimer les doublons (en ordre décroissant pour ne pas décaler les index)
+  aSupprimer.sort((a, b) => b - a).forEach(idx => {
+    transactions.splice(idx, 1);
+  });
+
+  sauvegarder();
+  rafraichir();
+  verifierRappels();
+
+  alert(`✅ Nettoyage terminé !\n\n${aSupprimer.length} doublon(s) supprimé(s).`);
 }
 
 // ── Graphique camembert ───────────────────────────────────────────────────────
