@@ -863,6 +863,89 @@ body.dark .export-menu li button:hover { background: var(--entry); }
 .btn-graphique:hover { background: var(--border); border-color: var(--accent); }
 .btn-categories:hover{ background: var(--border); border-color: var(--accent); }
 
+/* === DROPDOWN MAINTENANCE (SIDEBAR) === */
+.maintenance-dropdown {
+  position: relative;
+  width: 100%;
+}
+
+.btn-maintenance-toggle {
+  background: var(--entry); color: var(--text);
+  border: 1px solid var(--border); border-radius: 6px;
+  padding: 8px 10px; font-size: .85rem; cursor: pointer;
+  transition: background .2s, border-color .2s; width: 100%; text-align: left;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.btn-maintenance-toggle:hover {
+  background: var(--border);
+  border-color: var(--accent);
+}
+
+.maintenance-menu {
+  display: none;
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,.12);
+  list-style: none;
+  z-index: 200;
+  overflow: hidden;
+}
+
+.maintenance-menu.open {
+  display: block;
+}
+
+.maintenance-item {
+  display: block;
+  width: 100%;
+  padding: 10px 14px;
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font-size: .85rem;
+  cursor: pointer;
+  transition: background .15s;
+}
+
+.maintenance-item:hover {
+  background: var(--entry);
+}
+
+.maintenance-danger {
+  color: #dc2626;
+  font-weight: 500;
+}
+
+.maintenance-danger:hover {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+/* Mode sombre — dropdown maintenance */
+body.dark .maintenance-menu {
+  background: var(--panel);
+  border-color: var(--border);
+}
+
+body.dark .maintenance-item:hover {
+  background: var(--entry);
+}
+
+body.dark .maintenance-danger:hover {
+  background: rgba(220, 38, 38, 0.15);
+  color: #f87171;
+}
+
 /* === MODAL LARGE === */
 .modal-large {
   width: 560px; max-width: 96vw;

@@ -129,6 +129,7 @@ const LANG = {
 
     // Maintenance
     "h2-maintenance":         "🛠️ Maintenance",
+    "btn-maintenance-toggle": "🛠️ Maintenance ▾",
     "btn-nettoyer":           "🧹 Nettoyer doublons",
     "btn-clear-all":          "🗑️ Tout effacer",
 
@@ -271,6 +272,7 @@ const LANG = {
 
     // Maintenance
     "h2-maintenance":         "🛠️ Maintenance",
+    "btn-maintenance-toggle": "🛠️ Maintenance ▾",
     "btn-nettoyer":           "🧹 Clean duplicates",
     "btn-clear-all":          "🗑️ Clear all",
 

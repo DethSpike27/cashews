@@ -317,6 +317,25 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   exportMenu.addEventListener("click", e => e.stopPropagation());
 
+  // Dropdown Maintenance
+  const maintenanceToggle = document.getElementById("btn-maintenance-toggle");
+  const maintenanceMenu   = document.getElementById("maintenance-menu");
+  maintenanceToggle.addEventListener("click", e => {
+    e.stopPropagation();
+    const open = maintenanceMenu.classList.toggle("open");
+    maintenanceToggle.setAttribute("aria-expanded", open);
+  });
+  document.addEventListener("click", () => {
+    maintenanceMenu.classList.remove("open");
+    maintenanceToggle.setAttribute("aria-expanded", "false");
+  });
+  maintenanceMenu.addEventListener("click", e => {
+    e.stopPropagation();
+    // Fermer le menu après un clic sur un item
+    maintenanceMenu.classList.remove("open");
+    maintenanceToggle.setAttribute("aria-expanded", "false");
+  });
+
   document.getElementById("btn-export-csv").addEventListener("click", () => { exporterCSV(); exportMenu.classList.remove("open"); });
   document.getElementById("btn-export-json").addEventListener("click", () => { exporterJSON(); exportMenu.classList.remove("open"); });
   document.getElementById("btn-export-csv-all").addEventListener("click", () => { exporterCSVAll(); exportMenu.classList.remove("open"); });
